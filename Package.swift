@@ -13,6 +13,11 @@ let package = Package(
         .executableTarget(
             name: "MacShapearator",
             path: "Sources/MacShapearator"
+        ),
+        .testTarget(
+            name: "MacShapearatorTests",
+            dependencies: ["MacShapearator"],
+            path: "Tests/MacShapearatorTests"
         )
     ]
 )

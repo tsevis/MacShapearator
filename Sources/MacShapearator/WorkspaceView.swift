@@ -38,6 +38,22 @@ struct WorkspaceView: View {
             syncFormatState()
             selectedPreset = detectedPresetName()
         }
+        // The vision backend is unreachable. Offer the same choice the CLI's
+        // --allow-unnamed gives, rather than just reporting a failure.
+        .alert(
+            "Model Not Ready",
+            isPresented: Binding(
+                get: { viewModel.pendingUnnamedPrompt != nil },
+                set: { if !$0 { viewModel.dismissUnnamedPrompt() } }
+            ),
+            presenting: viewModel.pendingUnnamedPrompt
+        ) { _ in
+            Button("Cancel", role: .cancel) { viewModel.dismissUnnamedPrompt() }
+            Button("Export With Generic Names") { viewModel.retryAllowingUnnamed() }
+        } message: { failure in
+            Text("\(failure.message)\n\nExport anyway with generic filenames "
+                 + "(icon_001, icon_002, ...)? The metadata will record that no model named these icons.")
+        }
     }
 
     private var leftColumn: some View {

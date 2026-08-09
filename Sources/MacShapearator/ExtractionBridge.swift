@@ -9,11 +9,31 @@ final class ExtractionViewModel: ObservableObject {
     @Published var result: ExtractionResultRecord?
     @Published var selectedIcon: ExtractedIconRecord?
 
-    private var process: Process?
-    private var progressDecoder = JSONDecoder()
-    private var resultDecoder = JSONDecoder()
+    /// Set when the backend reported not-ready; drives the "export anyway?" prompt.
+    @Published var preflight: PreflightRecord?
+    /// A recoverable failure awaiting the user's answer.
+    @Published var pendingUnnamedPrompt: BridgeErrorRecord?
 
-    func runExtraction(settingsStore: SettingsStore, formats: Set<String>) {
+    private var process: Process?
+    private var decoder = JSONDecoder()
+    private var previewDirectory: URL?
+    private var lastRun: (store: SettingsStore, formats: Set<String>)?
+
+    /// Re-run the last extraction, accepting generic filenames.
+    func retryAllowingUnnamed() {
+        guard let lastRun else { return }
+        pendingUnnamedPrompt = nil
+        runExtraction(settingsStore: lastRun.store, formats: lastRun.formats, allowUnnamed: true)
+    }
+
+    func dismissUnnamedPrompt() {
+        pendingUnnamedPrompt = nil
+        state = .idle
+        progressMessage = "Idle"
+    }
+
+    func runExtraction(settingsStore: SettingsStore, formats: Set<String>, allowUnnamed: Bool = false) {
+        lastRun = (settingsStore, formats)
         var settings = settingsStore.settings
         let input = settings.lastInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
         let output = settings.lastOutputDir.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -37,12 +57,23 @@ final class ExtractionViewModel: ObservableObject {
             state = .failed("No usable Python runtime was found. Rebuild the app bundle or choose a valid Python path.")
             return
         }
+        // Refuse to run against an engine older than this app understands, rather
+        // than silently producing results from known-buggy code.
+        if let problem = AppRuntime.engineCompatibilityProblem(at: backendRoot) {
+            state = .failed(problem)
+            return
+        }
         settings.backendRoot = backendRoot.path
         settings.pythonPath = pythonExecutable.path
 
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("MacShapearator", isDirectory: true)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let settingsURL = tempDir.appendingPathComponent("settings.json")
+
+        // UI thumbnails are scratch data. They used to be written into the user's
+        // export folder, where nothing ever cleaned them up.
+        let previewDir = tempDir.appendingPathComponent("previews-\(UUID().uuidString)", isDirectory: true)
+        previewDirectory = previewDir
         do {
             let data = try JSONEncoder().encode(settings)
             try data.write(to: settingsURL, options: .atomic)
@@ -59,8 +90,8 @@ final class ExtractionViewModel: ObservableObject {
             "--settings", settingsURL.path,
             "--input", input,
             "--output", output,
-            "--formats"
-        ] + formats.sorted()
+            "--preview-dir", previewDir.path,
+        ] + (allowUnnamed ? ["--allow-unnamed"] : []) + ["--formats"] + formats.sorted()
         task.environment = buildEnvironment(backendRoot: backendRoot, pythonExecutable: pythonExecutable)
 
         let stdout = Pipe()
@@ -82,10 +113,14 @@ final class ExtractionViewModel: ObservableObject {
             let errData = stderr.fileHandleForReading.readDataToEndOfFile()
             let errText = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             Task { @MainActor in
-                if process.terminationStatus != 0 {
-                    self?.state = .failed(errText.isEmpty ? "Extraction failed." : errText)
-                }
-                self?.process = nil
+                guard let self else { return }
+                self.process = nil
+                guard process.terminationStatus != 0 else { return }
+                // A structured ERROR line has already set a precise state; only
+                // fall back to stderr when the bridge died without reporting.
+                if case .failed = self.state { return }
+                if self.pendingUnnamedPrompt != nil { return }
+                self.state = .failed(errText.isEmpty ? "Extraction failed." : errText)
             }
         }
 
@@ -108,25 +143,57 @@ final class ExtractionViewModel: ObservableObject {
             let line = String(buffer[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
             buffer.removeSubrange(buffer.startIndex...range.lowerBound)
             guard !line.isEmpty else { continue }
-            if line.hasPrefix("PROGRESS\t") {
-                let payload = String(line.dropFirst(9))
-                if let data = payload.data(using: .utf8),
-                   let event = try? progressDecoder.decode(ProgressEvent.self, from: data) {
+            guard let tab = line.firstIndex(of: "\t") else { continue }
+            let tag = String(line[..<tab])
+            guard let data = String(line[line.index(after: tab)...]).data(using: .utf8) else { continue }
+
+            switch tag {
+            case "PROGRESS":
+                if let event = try? decoder.decode(ProgressEvent.self, from: data) {
                     progress = event.fraction
                     progressMessage = event.message
                 }
-            } else if line.hasPrefix("RESULT\t") {
-                let payload = String(line.dropFirst(7))
-                if let data = payload.data(using: .utf8),
-                   let extraction = try? resultDecoder.decode(ExtractionResultRecord.self, from: data) {
+            case "PREFLIGHT":
+                preflight = try? decoder.decode(PreflightRecord.self, from: data)
+            case "RESULT":
+                if let extraction = try? decoder.decode(ExtractionResultRecord.self, from: data) {
                     result = extraction
                     selectedIcon = extraction.icons.first
                     progress = 1
-                    progressMessage = "Done. Exported \(extraction.icons.count) items."
+                    progressMessage = completionMessage(for: extraction)
                     state = .success(extraction.providerSummary)
                 }
+            case "ERROR":
+                if let failure = try? decoder.decode(BridgeErrorRecord.self, from: data) {
+                    if failure.recoverable == true {
+                        // The model is unreachable. Let the user decide whether to
+                        // export with generic filenames instead of just failing.
+                        pendingUnnamedPrompt = failure
+                        progressMessage = "Waiting for your choice..."
+                    } else {
+                        state = .failed(failure.message)
+                        progressMessage = "Extraction failed."
+                    }
+                }
+            default:
+                continue
             }
         }
+    }
+
+    /// Report what actually happened, not just the icon count: naming outcome
+    /// and whether a previous export was replaced both matter to the user.
+    private func completionMessage(for extraction: ExtractionResultRecord) -> String {
+        var parts = ["Exported \(extraction.icons.count) items"]
+        if let naming = extraction.naming, naming.requested {
+            parts.append(naming.failed > 0
+                ? "\(naming.named) named, \(naming.failed) failed"
+                : "\(naming.named) named")
+        }
+        if let commit = extraction.commit, commit.replaced > 0 {
+            parts.append("replaced \(commit.replaced) files from the previous run")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func buildEnvironment(backendRoot: URL, pythonExecutable: URL) -> [String: String] {

@@ -72,69 +72,56 @@ bundled, versioned, never mentioned in the UI, never something a user installs.
 
 Each was confirmed by reading or running the code, not inferred.
 
-1. **The shipped app runs a stale engine.** `Resources/BundledBackend/services/`
-   contains 5 modules; v0.4.1 has 21. It is missing `svg_ops`, `semantic_naming`,
-   `export_commit`, `settings_schema`, `metadata_paths`, `geometry`,
-   `raster_ops`, `vision` and more — it predates even the llama.cpp work. It
-   still imports cleanly, which is the trap: **the packaged .app silently runs
-   the old engine with all five audit bugs.** `build_app.sh` never syncs it; the
-   copy was made by hand.
+1. ~~**The shipped app runs a stale engine.**~~ **FIXED in Phase 1.**
+   `Resources/BundledBackend` reported `APP_VERSION = "0.1.0"` against a current
+   engine of 0.4.1 — 5 modules where v0.4.1 has 21, missing `svg_ops`,
+   `semantic_naming`, `export_commit`, `settings_schema`, `metadata_paths`,
+   `geometry`, `raster_ops` and `vision`. It still imported cleanly, which was
+   the trap: **the packaged .app silently extracted using engine 0.1.0.**
+   `build_app.sh` never synced it; the copy was made by hand.
+   Now exported from a pinned git ref at build time, stamped with
+   `ENGINE_VERSION`, and checked at launch against
+   `AppRuntime.minimumEngineVersion`.
 
-2. **The bridge does not catch `SemanticPreflightError`.** An unreachable model
-   now surfaces in the Swift error dialog as a raw Python traceback:
-   ```
-   services.semantic_naming.SemanticPreflightError: Ollama is not reachable at …
-   ```
+2. ~~**The bridge does not catch `SemanticPreflightError`.**~~ **FIXED.** It now emits a structured `ERROR` line with `recoverable: true`; a traceback can no longer reach the UI.
 
-3. **The bridge never passes `allow_unnamed`**, so the "export with generic
-   names instead" choice the engine offers is unreachable from the Mac app.
+3. ~~**The bridge never passes `allow_unnamed`.**~~ **FIXED.** The app offers *Export With Generic Names* and re-runs with the flag.
 
-4. **The bridge discards the new result data.** `ExtractionResultRecord` carries
-   only `inputPath`, `outputDir`, `providerSummary`, `icons`. Nothing conveys
-   per-icon `naming_status` / `naming_error`, named/failed counts, run warnings,
-   or the commit report's replaced-file count.
+4. ~~**The bridge discards the new result data.**~~ **FIXED.** Per-icon naming status, the naming summary, warnings, the commit report, and the engine version all reach Swift.
 
-5. **Hardcoded personal paths in four places** — `Models.swift:4,5,9`,
-   `AppRuntime.swift:138`, `build_app.sh:6`, and `README.md`. The app cannot run
-   for anyone else, and the paths disclose an account name. This is the same
-   class of leak fixed engine-side in v0.4.1.
+5. ~~**Hardcoded personal paths.**~~ **FIXED.** Defaults are empty and resolved at runtime; `build_app.sh` discovers its inputs.
 
 6. **The bundle is ~7 GB.** `build_app.sh:14` rsyncs an entire pyenv, which on
    this machine includes TensorFlow, PyTorch, JAX, polars and llvmlite — none of
    which Shapearator uses. Its real dependencies are opencv-python, numpy,
    Pillow, requests and huggingface_hub.
 
-7. **`.swift_previews/` is written permanently into the user's output folder.**
-   `extract_bridge.py:64-72` renders UI thumbnails there. They are untracked by
-   the run manifest, so nothing ever cleans them up.
+7. ~~**`.swift_previews/` in the user's output folder.**~~ **FIXED.** Thumbnails go to a per-run temporary directory.
 
-8. **The bridge script is duplicated** byte-identically in `Scripts/` and
-   `Resources/Scripts/`, synced by hand.
+8. ~~**The bridge script is duplicated.**~~ **FIXED.** `Scripts/` is the source; `build_app.sh` copies it at package time.
 
 9. **Preflight logic is duplicated in Swift.** `OllamaRuntimeViewModel` re-implements
    reachability and model-presence checks that `services/vision.preflight()`
    already does — and only for Ollama, which is why llama.cpp is absent.
 
-10. **The settings bridge is a hand-maintained mapping.** `extract_bridge.py:31-48`
-    converts camelCase to snake_case field by field; any new engine setting is
-    silently dropped.
+10. ~~**Hand-maintained settings mapping.**~~ **PARTLY FIXED.** The bridge now translates spelling only and defers validation to `services.settings_schema.coerce_settings`, so unknown fields degrade instead of breaking. Adding a new field still means adding it to `ExtractionSettings`.
 
 ---
 
-## 4. Phase 0 — Foundation (½ day)
+## 4. Phase 0 — Foundation (½ day) — **DONE** (except the .dmg decision)
 
 Make the project buildable by someone other than its author.
 
 - [x] `git init`, `.gitignore` excluding the 4.5 GB interpreter, Inkscape.app,
       potrace, `.dmg`, and the vendored engine copy; publish to
       `github.com/tsevis/MacShapearator` (private).
-- [ ] Remove every hardcoded `/Users/tsevis/…`. Replace with:
+- [x] Remove every hardcoded `/Users/tsevis/…`. Replace with:
       - `backendRoot` — default empty, resolved to the bundled engine.
       - `pythonPath` — default empty, resolved to the bundled interpreter.
       - `localModelRoot` — default to `~/Library/Application Support/MacShapearator/models`.
       - `build_app.sh` — read `PYTHON_SRC`, `INKSCAPE_APP`, `POTRACE_PREFIX` from
         the environment with sensible discovery, not literals.
-- [ ] De-duplicate the bridge: keep `Scripts/extract_bridge.py`, have
+- [x] De-duplicate the bridge: keep `Scripts/extract_bridge.py`, have
       `build_app.sh` copy it into `Resources/` at package time.
 - [ ] Decide the fate of the 1.7 GB `MacShapearator.dmg` in the working tree
       (delete locally; publish future builds as GitHub release assets).
@@ -144,7 +131,7 @@ project, with no path editing.
 
 ---
 
-## 5. Phase 1 — Correctness parity (1 day)
+## 5. Phase 1 — Correctness parity (1 day) — **DONE**
 
 Close the gap between what the app ships and what the engine does.
 

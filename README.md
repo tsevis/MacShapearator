@@ -1,38 +1,69 @@
 # MacShapearator
 
-Native macOS SwiftUI front-end for Shapearator.
+Native macOS front-end for [Shapearator](https://github.com/tsevis/shapearator).
 
-## Current architecture
+## Architecture
 
-This first native version provides:
-- a macOS-native SwiftUI workspace and settings UI
-- persisted local settings in Application Support
-- extraction execution through the local Python Shapearator engine
-- native preview and results browsing
+MacShapearator is a SwiftUI application that drives the Shapearator extraction
+engine. The engine stays in Python — it is bundled into the app, pinned to a
+released version, and never something the user installs. Communication is a
+line-based protocol over stdout:
 
-That means the app is usable immediately while the extraction core continues moving from Python into Swift over time.
+```
+SwiftUI  ──spawns──▶  Scripts/extract_bridge.py  ──imports──▶  services.extractor
+   ▲                                                                  │
+   └────────  PREFLIGHT / PROGRESS / RESULT / ERROR lines  ◀───────────┘
+```
 
-## Run
+See [PORTING_PLAN.md](PORTING_PLAN.md) for the roadmap to full parity.
+
+## Requirements
+
+- macOS 13 or newer
+- Xcode 15 or newer
+- For packaging: [XcodeGen](https://github.com/yonaskolb/XcodeGen), Inkscape,
+  potrace (`brew install xcodegen potrace inkscape`)
+
+## Run from source
+
+Requires a Shapearator checkout. By default a sibling directory is used:
 
 ```bash
+git clone https://github.com/tsevis/shapearator ../shapearator
 ./run.sh
 ```
 
-## Build Standalone App
+Point elsewhere with `SHAPEARATOR_SRC=/path/to/shapearator ./run.sh`.
+
+## Build a standalone app
 
 ```bash
 ./build_app.sh
 ```
 
-This generates:
+This bundles the engine, a Python interpreter, Inkscape, and potrace into
+`build/Build/Products/Debug/MacShapearator.app`.
+
+Every external location is discovered automatically and can be overridden:
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `SHAPEARATOR_SRC` | Shapearator checkout to bundle from | `../shapearator` |
+| `SHAPEARATOR_REF` | Engine git ref to ship | the minimum supported version |
+| `PYTHON_SRC` | Interpreter root to bundle | `sys.prefix` of `python3` on PATH |
+| `INKSCAPE_APP` | Inkscape to bundle | `/Applications/Inkscape.app` |
+| `POTRACE_PREFIX` | potrace install prefix | `brew --prefix potrace` |
+
+## Engine versioning
+
+The bundled engine is a build artifact, never a checked-in copy — `build_app.sh`
+exports it from a git ref and stamps `Resources/BundledBackend/ENGINE_VERSION`.
+At launch the app compares that against `AppRuntime.minimumEngineVersion` and
+refuses to run against an older engine, so a stale bundle fails loudly instead
+of silently extracting with out-of-date behaviour.
+
+To ship a newer engine, tag it in the Shapearator repo and run:
 
 ```bash
-/Users/tsevis/AI/ClaudeCode/MacShapearator/build/Build/Products/Debug/MacShapearator.app
+SHAPEARATOR_REF=v0.4.2 ./build_app.sh
 ```
-
-## Notes
-
-- Default backend root: `/Users/tsevis/AI/ClaudeCode/shapearator`
-- Default Python runtime: `/Users/tsevis/.pyenv/versions/3.10.13/bin/python`
-- The bridge script lives at `Scripts/extract_bridge.py`
-- The standalone Xcode app bundles a local copy of the Python backend in `Resources/BundledBackend`

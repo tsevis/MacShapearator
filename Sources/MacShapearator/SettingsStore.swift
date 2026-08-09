@@ -33,9 +33,12 @@ final class SettingsStore: ObservableObject {
         } else {
             normalized.pythonPath = AppRuntime.defaultPythonPath(existing: normalized.pythonPath)
         }
-        if let bundled = AppRuntime.bundledBackendRoot(),
-           !FileManager.default.fileExists(atPath: normalized.backendRoot) {
-            normalized.backendRoot = bundled.path
+        if !AppRuntime.isEngineRoot(URL(fileURLWithPath: normalized.backendRoot)),
+           let resolved = AppRuntime.resolveBackendRoot(from: "") {
+            normalized.backendRoot = resolved.path
+        }
+        if normalized.localModelRoot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            normalized.localModelRoot = AppRuntime.defaultLocalModelRoot()
         }
         return normalized
     }
