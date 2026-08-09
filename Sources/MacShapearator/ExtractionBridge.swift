@@ -92,7 +92,7 @@ final class ExtractionViewModel: ObservableObject {
             "--output", output,
             "--preview-dir", previewDir.path,
         ] + (allowUnnamed ? ["--allow-unnamed"] : []) + ["--formats"] + formats.sorted()
-        task.environment = buildEnvironment(backendRoot: backendRoot, pythonExecutable: pythonExecutable)
+        task.environment = BridgeRunner.environment(backend: backendRoot, python: pythonExecutable)
 
         let stdout = Pipe()
         let stderr = Pipe()
@@ -196,26 +196,6 @@ final class ExtractionViewModel: ObservableObject {
         return parts.joined(separator: " · ")
     }
 
-    private func buildEnvironment(backendRoot: URL, pythonExecutable: URL) -> [String: String] {
-        var env = ProcessInfo.processInfo.environment
-        let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        var pathEntries: [String] = []
-        pathEntries.append(pythonExecutable.deletingLastPathComponent().path)
-        if let bundledBin = AppRuntime.bundledBinDirectory()?.path {
-            pathEntries.append(bundledBin)
-        }
-        if let inkscapeExecutable = AppRuntime.bundledInkscapeExecutable()?.deletingLastPathComponent().path {
-            pathEntries.append(inkscapeExecutable)
-        }
-        pathEntries.append(currentPath)
-        env["PATH"] = pathEntries.joined(separator: ":")
-        if let bundledPythonRoot = AppRuntime.bundledPythonRoot()?.appendingPathComponent("python").path {
-            env["PYTHONHOME"] = bundledPythonRoot
-        }
-        env["PYTHONNOUSERSITE"] = "1"
-        env["SHAPEARATOR_BUNDLED_BACKEND"] = backendRoot.path
-        return env
-    }
 }
 
 extension ExtractedIconRecord {

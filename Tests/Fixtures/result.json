@@ -1,0 +1,143 @@
+{
+  "inputPath": "/tmp/fixture/small.png",
+  "outputDir": "/tmp/fixture/fxout",
+  "providerSummary": "Ollama local + qwen2.5vl:3b",
+  "engineVersion": "0.4.1",
+  "icons": [
+    {
+      "index": 1,
+      "stem": "eye-opened",
+      "outputs": {
+        "png": "/tmp/fixture/fxout/png/eye-opened.png"
+      },
+      "previewPath": "/tmp/fixture/fxout/png/eye-opened.png",
+      "canvasSize": [
+        512,
+        512
+      ],
+      "sourceSize": [
+        104,
+        31
+      ],
+      "sourceBounds": [
+        173,
+        97,
+        104,
+        31
+      ],
+      "metadataPath": "/tmp/fixture/fxout/metadata/eye-opened.json",
+      "namingStatus": "named",
+      "namingError": null,
+      "semanticTags": [
+        "icon",
+        "eye",
+        "symbol"
+      ],
+      "semanticConfidence": null
+    },
+    {
+      "index": 2,
+      "stem": "upload-icon",
+      "outputs": {
+        "png": "/tmp/fixture/fxout/png/upload-icon.png"
+      },
+      "previewPath": "/tmp/fixture/fxout/png/upload-icon.png",
+      "canvasSize": [
+        512,
+        512
+      ],
+      "sourceSize": [
+        64,
+        25
+      ],
+      "sourceBounds": [
+        340,
+        103,
+        64,
+        25
+      ],
+      "metadataPath": "/tmp/fixture/fxout/metadata/upload-icon.json",
+      "namingStatus": "named",
+      "namingError": null,
+      "semanticTags": [
+        "upload",
+        "icon"
+      ],
+      "semanticConfidence": 0.9
+    },
+    {
+      "index": 3,
+      "stem": "arrow-down",
+      "outputs": {
+        "png": "/tmp/fixture/fxout/png/arrow-down.png"
+      },
+      "previewPath": "/tmp/fixture/fxout/png/arrow-down.png",
+      "canvasSize": [
+        512,
+        512
+      ],
+      "sourceSize": [
+        39,
+        28
+      ],
+      "sourceBounds": [
+        469,
+        100,
+        39,
+        28
+      ],
+      "metadataPath": "/tmp/fixture/fxout/metadata/arrow-down.json",
+      "namingStatus": "named",
+      "namingError": null,
+      "semanticTags": [
+        "icon"
+      ],
+      "semanticConfidence": 0.9
+    },
+    {
+      "index": 4,
+      "stem": "upload-icon-02",
+      "outputs": {
+        "png": "/tmp/fixture/fxout/png/upload-icon-02.png"
+      },
+      "previewPath": "/tmp/fixture/fxout/png/upload-icon-02.png",
+      "canvasSize": [
+        512,
+        512
+      ],
+      "sourceSize": [
+        55,
+        30
+      ],
+      "sourceBounds": [
+        563,
+        98,
+        55,
+        30
+      ],
+      "metadataPath": "/tmp/fixture/fxout/metadata/upload-icon-02.json",
+      "namingStatus": "named",
+      "namingError": null,
+      "semanticTags": [
+        "upload",
+        "icon"
+      ],
+      "semanticConfidence": 0.9
+    }
+  ],
+  "naming": {
+    "requested": true,
+    "provider": "ollama",
+    "model": "qwen2.5vl:3b",
+    "named": 4,
+    "failed": 0,
+    "errors": [],
+    "summary": "Semantic naming: 4 named via ollama/qwen2.5vl:3b."
+  },
+  "commit": {
+    "written": 8,
+    "replaced": 0,
+    "preserved": 0
+  },
+  "warnings": []
+}

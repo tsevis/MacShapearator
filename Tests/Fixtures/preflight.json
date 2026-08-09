@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "provider": "ollama",
+  "message": "Ollama ready with vision model 'qwen2.5vl:3b'.",
+  "model": "qwen2.5vl:3b",
+  "visionCapable": true
+}

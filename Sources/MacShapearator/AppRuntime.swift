@@ -30,17 +30,17 @@ enum AppRuntime {
         return nil
     }
 
-    static func bundledBridgeScript() -> URL? {
+    static func bundledBridgeScript(named name: String = bridgeScriptName) -> URL? {
         if let direct = Bundle.main.resourceURL?
             .appendingPathComponent(bundledScriptsFolder, isDirectory: true)
-            .appendingPathComponent(bridgeScriptName),
+            .appendingPathComponent(name),
            FileManager.default.fileExists(atPath: direct.path) {
             return direct
         }
         if let nested = Bundle.main.resourceURL?
             .appendingPathComponent("Resources", isDirectory: true)
             .appendingPathComponent(bundledScriptsFolder, isDirectory: true)
-            .appendingPathComponent(bridgeScriptName),
+            .appendingPathComponent(name),
            FileManager.default.fileExists(atPath: nested.path) {
             return nested
         }
@@ -75,18 +75,17 @@ enum AppRuntime {
         return candidates.first(where: isEngineRoot)?.standardizedFileURL
     }
 
-    static func resolveBridgeScript() -> URL? {
-        if let bundled = bundledBridgeScript(), FileManager.default.fileExists(atPath: bundled.path) {
+    static func resolveBridgeScript(named name: String = bridgeScriptName) -> URL? {
+        if let bundled = bundledBridgeScript(named: name) {
             return bundled
         }
         let local = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("Scripts", isDirectory: true)
-            .appendingPathComponent(bridgeScriptName)
-        if FileManager.default.fileExists(atPath: local.path) {
-            return local
-        }
-        return nil
+            .appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: local.path) ? local : nil
     }
+
+    static let engineBridgeScriptName = "engine_bridge.py"
 
     static func bundledPythonRoot() -> URL? {
         if let direct = Bundle.main.resourceURL?.appendingPathComponent(bundledPythonFolder, isDirectory: true),

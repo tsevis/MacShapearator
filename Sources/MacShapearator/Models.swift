@@ -8,6 +8,10 @@ struct ExtractionSettings: Codable, Equatable {
     var provider: String = "geometry"
     var ollamaURL: String = "http://127.0.0.1:11434"
     var ollamaModel: String = "qwen2.5vl:3b"
+    var llamacppURL: String = "http://127.0.0.1:8080"
+    var llamacppModel: String = ""
+    /// Where downloaded llama.cpp GGUF weights live.
+    var modelsRoot: String = AppRuntime.defaultLocalModelRoot()
     var localModelRoot: String = AppRuntime.defaultLocalModelRoot()
     var localModelName: String = ""
     var semanticNaming: Bool = false
@@ -23,18 +27,87 @@ struct ExtractionSettings: Codable, Equatable {
     var lastOutputDir: String = ""
 }
 
-struct OllamaRuntimeStatus: Equatable {
-    var isInstalled: Bool = false
-    var binaryPath: String?
-    var isServerReachable: Bool = false
-    var installedModels: [String] = []
-    var recommendedModel: String = "qwen2.5vl:3b"
-    var statusMessage: String = "Checking local Ollama runtime..."
-    var startGuidance: String = "Launch Ollama.app or run `ollama serve`, then refresh status."
+// MARK: - Engine-reported model runtime
+//
+// These mirror services/model_registry.py and services/first_run.py. Discovery
+// and readiness are the engine's job -- reimplementing them in Swift is what
+// left the Mac app Ollama-only while the engine gained a second backend.
 
-    var hasRecommendedModel: Bool {
-        installedModels.contains(recommendedModel)
-    }
+struct ModelDescriptorRecord: Codable, Hashable, Identifiable {
+    let name: String
+    let source: String
+    let location: String
+    let priority: Int
+    let recommendation: String
+    let supportsVision: Bool
+
+    var id: String { "\(source)/\(name)" }
+}
+
+struct StartableModelRecord: Codable, Hashable, Identifiable {
+    let displayName: String
+    let priority: Int
+    let source: String
+
+    var id: String { displayName }
+}
+
+struct BackendAvailability: Codable, Equatable {
+    let ollamaReachable: Bool
+    let llamacppBinary: Bool
+}
+
+struct ModelsRecord: Codable {
+    let backends: BackendAvailability
+    let ollama: [ModelDescriptorRecord]
+    let llamacpp: [ModelDescriptorRecord]
+    let llamacppStartable: [StartableModelRecord]
+    let directory: [ModelDescriptorRecord]
+}
+
+struct SetupCandidateRecord: Codable, Hashable, Identifiable {
+    let key: String
+    let displayName: String
+    let recommendation: String
+    let backend: String
+    let installed: Bool
+    let approxGB: Double
+    let defaultSelected: Bool
+    let label: String
+
+    var id: String { "\(backend)/\(key)" }
+}
+
+struct SetupStatusRecord: Codable {
+    let backends: BackendAvailability
+    let setupMarked: Bool
+    let needsFirstRun: Bool
+    let candidates: [SetupCandidateRecord]
+}
+
+struct InstallProgressRecord: Codable {
+    let backend: String
+    let modelKey: String
+    let phase: String
+    let completed: Int
+    let total: Int
+    let fraction: Double
+    let message: String
+}
+
+struct InstalledRecord: Codable {
+    let key: String
+    let backend: String
+    let provider: String
+    let ollamaModel: String
+    let llamacppModel: String
+    let semanticNaming: Bool
+}
+
+struct ServerRecord: Codable {
+    let running: Bool
+    let model: String?
+    let message: String
 }
 
 struct ExtractedIconRecord: Codable, Identifiable, Hashable {

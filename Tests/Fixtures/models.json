@@ -1,0 +1,93 @@
+{
+  "backends": {
+    "ollamaReachable": true,
+    "llamacppBinary": true
+  },
+  "ollama": [
+    {
+      "name": "qwen2.5vl:3b",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 2,
+      "recommendation": "Lightweight, reliable balance of icon understanding, stable short labels, and local speed.",
+      "supportsVision": true
+    },
+    {
+      "name": "minicpm-v:latest",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 3,
+      "recommendation": "Great backup when you want a second opinion on hand-drawn marks and ambiguous symbols.",
+      "supportsVision": true
+    },
+    {
+      "name": "moondream:latest",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 4,
+      "recommendation": "Fastest lightweight option for quick local naming passes.",
+      "supportsVision": true
+    },
+    {
+      "name": "llava:7b",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 5,
+      "recommendation": "General fallback vision model when the preferred local icon models are unavailable.",
+      "supportsVision": true
+    },
+    {
+      "name": "bge-m3:latest",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 500,
+      "recommendation": "Available locally, but not one of the app's primary icon-focused recommendations.",
+      "supportsVision": false
+    },
+    {
+      "name": "gemma4:e4b",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 500,
+      "recommendation": "Available locally, but not one of the app's primary icon-focused recommendations.",
+      "supportsVision": false
+    },
+    {
+      "name": "ilsp/llama-krikri-8b-instruct:latest",
+      "source": "ollama",
+      "location": "local ollama",
+      "priority": 500,
+      "recommendation": "Available locally, but not one of the app's primary icon-focused recommendations.",
+      "supportsVision": false
+    }
+  ],
+  "llamacpp": [],
+  "llamacppStartable": [
+    {
+      "displayName": "Qwen3-VL",
+      "priority": 1,
+      "source": "cache"
+    },
+    {
+      "displayName": "MiniCPM-V",
+      "priority": 3,
+      "source": "cache"
+    },
+    {
+      "displayName": "moondream2",
+      "priority": 4,
+      "source": "cache"
+    },
+    {
+      "displayName": "LLaVA",
+      "priority": 5,
+      "source": "cache"
+    },
+    {
+      "displayName": "SmolVLM 500M (ultra-light)",
+      "priority": 9,
+      "source": "cache"
+    }
+  ],
+  "directory": []
+}

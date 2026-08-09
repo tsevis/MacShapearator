@@ -52,10 +52,10 @@ git -C "$SHAPEARATOR_SRC" archive "$SHAPEARATOR_REF" services requirements.txt \
   | tar -x -C Resources/BundledBackend
 print "$SHAPEARATOR_REF" > Resources/BundledBackend/ENGINE_VERSION
 
-# --- Bridge script ---------------------------------------------------------
+# --- Bridge scripts --------------------------------------------------------
 # Single source of truth is Scripts/; Resources/ is a packaging copy.
 mkdir -p Resources/Scripts
-cp Scripts/extract_bridge.py Resources/Scripts/extract_bridge.py
+cp Scripts/extract_bridge.py Scripts/engine_bridge.py Resources/Scripts/
 
 # --- Interpreter, Inkscape, potrace ---------------------------------------
 rm -rf Resources/BundledPython Resources/BundledBin Resources/ThirdParty

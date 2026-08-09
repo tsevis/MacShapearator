@@ -56,15 +56,15 @@ bundled, versioned, never mentioned in the UI, never something a user installs.
 | Publishable metadata (no local paths) | yes | inherited | — |
 | Semantic naming, Ollama | yes | yes | — |
 | Semantic naming, SVG-only exports | yes | inherited | 3 |
-| **llama.cpp backend** | yes | **absent entirely** | 2 |
-| **Enforced preflight before export** | yes | **absent** (advisory, duplicated in Swift) | 1 |
-| **`allow_unnamed` choice** | yes | **absent** | 1 |
+| llama.cpp backend | yes | yes | done |
+| Enforced preflight before export | yes | yes | done |
+| `allow_unnamed` choice | yes | yes | done |
 | **Per-icon naming status / counts** | yes | **absent** | 3 |
 | **Run warnings surfaced** | yes | **absent** | 3 |
-| First-run model download | full flow | Ollama pull only | 2 |
-| Model catalog / registry | yes | Ollama `list` parsing | 2 |
-| Settings validation | schema-aware | none | 2 |
-| Runs on a machine that isn't yours | yes | **no** (hardcoded paths) | 0 |
+| First-run model download | full flow | full flow, both backends | done |
+| Model catalog / registry | yes | engine-driven, both backends | done |
+| Settings validation | schema-aware | schema-aware (via bridge) | done |
+| Runs on a machine that isn't yours | yes | yes | done |
 
 ---
 
@@ -100,9 +100,7 @@ Each was confirmed by reading or running the code, not inferred.
 
 8. ~~**The bridge script is duplicated.**~~ **FIXED.** `Scripts/` is the source; `build_app.sh` copies it at package time.
 
-9. **Preflight logic is duplicated in Swift.** `OllamaRuntimeViewModel` re-implements
-   reachability and model-presence checks that `services/vision.preflight()`
-   already does — and only for Ollama, which is why llama.cpp is absent.
+9. ~~**Preflight logic duplicated in Swift.**~~ **FIXED in Phase 2.** `OllamaRuntimeViewModel` is gone; `ModelRuntimeViewModel` asks the engine via `Scripts/engine_bridge.py`, so both backends work and future engine work arrives free.
 
 10. ~~**Hand-maintained settings mapping.**~~ **PARTLY FIXED.** The bridge now translates spelling only and defers validation to `services.settings_schema.coerce_settings`, so unknown fields degrade instead of breaking. Adding a new field still means adding it to `ExtractionSettings`.
 
@@ -178,7 +176,7 @@ a native dialog, and the packaged app's metadata reports `app_version 0.4.1`.
 
 ---
 
-## 6. Phase 2 — Feature parity (2–3 days)
+## 6. Phase 2 — Feature parity (2–3 days) — **DONE**
 
 ### 2a. llama.cpp backend
 

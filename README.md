@@ -10,10 +10,15 @@ released version, and never something the user installs. Communication is a
 line-based protocol over stdout:
 
 ```
-SwiftUI  ──spawns──▶  Scripts/extract_bridge.py  ──imports──▶  services.extractor
-   ▲                                                                  │
-   └────────  PREFLIGHT / PROGRESS / RESULT / ERROR lines  ◀───────────┘
+SwiftUI  ──spawns──▶  Scripts/extract_bridge.py  ──▶  services.extractor
+         ──spawns──▶  Scripts/engine_bridge.py   ──▶  services.vision / model_registry
+   ▲                                                  services.first_run / llamacpp_*
+   └──  PREFLIGHT / PROGRESS / RESULT / MODELS / SETUP / INSTALLED / ERROR  ──┘
 ```
+
+Model discovery, backend readiness, and model installation are all delegated to
+the engine rather than reimplemented in Swift — which is why both the Ollama and
+llama.cpp backends work, and why engine improvements need no Swift change.
 
 See [PORTING_PLAN.md](PORTING_PLAN.md) for the roadmap to full parity.
 

@@ -1,0 +1,110 @@
+{
+  "backends": {
+    "ollamaReachable": true,
+    "llamacppBinary": true
+  },
+  "setupMarked": true,
+  "needsFirstRun": false,
+  "candidates": [
+    {
+      "key": "qwen3-vl",
+      "displayName": "Qwen3-VL",
+      "recommendation": "Newest and strongest vision model for this app: excellent icon understanding with clean short labels.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 6.5,
+      "defaultSelected": false,
+      "label": "Qwen3-VL \u00b7 llama.cpp \u00b7 ~6.5 GB download"
+    },
+    {
+      "key": "qwen2.5-vl",
+      "displayName": "Qwen2.5-VL 3B",
+      "recommendation": "Lightweight, reliable balance of icon understanding, stable short labels, and local speed.",
+      "backend": "ollama",
+      "installed": true,
+      "approxGB": 3.2,
+      "defaultSelected": true,
+      "label": "Qwen2.5-VL 3B \u00b7 Ollama \u00b7 installed"
+    },
+    {
+      "key": "qwen2.5-vl",
+      "displayName": "Qwen2.5-VL 3B",
+      "recommendation": "Lightweight, reliable balance of icon understanding, stable short labels, and local speed.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 3.0,
+      "defaultSelected": false,
+      "label": "Qwen2.5-VL 3B \u00b7 llama.cpp \u00b7 ~3.0 GB download"
+    },
+    {
+      "key": "minicpm-v",
+      "displayName": "MiniCPM-V",
+      "recommendation": "Great backup when you want a second opinion on hand-drawn marks and ambiguous symbols.",
+      "backend": "ollama",
+      "installed": true,
+      "approxGB": 5.5,
+      "defaultSelected": false,
+      "label": "MiniCPM-V \u00b7 Ollama \u00b7 installed"
+    },
+    {
+      "key": "minicpm-v",
+      "displayName": "MiniCPM-V",
+      "recommendation": "Great backup when you want a second opinion on hand-drawn marks and ambiguous symbols.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 5.5,
+      "defaultSelected": false,
+      "label": "MiniCPM-V \u00b7 llama.cpp \u00b7 ~5.5 GB download"
+    },
+    {
+      "key": "moondream",
+      "displayName": "moondream2",
+      "recommendation": "Fastest lightweight option for quick local naming passes.",
+      "backend": "ollama",
+      "installed": true,
+      "approxGB": 1.7,
+      "defaultSelected": false,
+      "label": "moondream2 \u00b7 Ollama \u00b7 installed"
+    },
+    {
+      "key": "moondream",
+      "displayName": "moondream2",
+      "recommendation": "Fastest lightweight option for quick local naming passes.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 1.9,
+      "defaultSelected": false,
+      "label": "moondream2 \u00b7 llama.cpp \u00b7 ~1.9 GB download"
+    },
+    {
+      "key": "llava",
+      "displayName": "LLaVA",
+      "recommendation": "General fallback vision model when the preferred local icon models are unavailable.",
+      "backend": "ollama",
+      "installed": true,
+      "approxGB": 4.7,
+      "defaultSelected": false,
+      "label": "LLaVA \u00b7 Ollama \u00b7 installed"
+    },
+    {
+      "key": "llava",
+      "displayName": "LLaVA",
+      "recommendation": "General fallback vision model when the preferred local icon models are unavailable.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 4.4,
+      "defaultSelected": false,
+      "label": "LLaVA \u00b7 llama.cpp \u00b7 ~4.4 GB download"
+    },
+    {
+      "key": "smolvlm-500m",
+      "displayName": "SmolVLM 500M (ultra-light)",
+      "recommendation": "Tiny footprint for constrained machines or a fast smoke test; lower accuracy on ambiguous marks.",
+      "backend": "llamacpp",
+      "installed": false,
+      "approxGB": 0.6,
+      "defaultSelected": false,
+      "label": "SmolVLM 500M (ultra-light) \u00b7 llama.cpp \u00b7 ~0.6 GB download"
+    }
+  ]
+}
