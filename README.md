@@ -8,6 +8,10 @@ turn one sheet full of icons into a tidy set of cropped, named, organized files.
 Everything ships inside the app. There is no Python to install, no Inkscape to
 find, no `PATH` to configure — and nothing leaves your Mac.
 
+*Above: nine instruments extracted from one vector sheet and named by a local
+model. The drum kit is drawn as nineteen separate paths and stays a single
+icon, because the artwork groups it that way.*
+
 ---
 
 ## What it does
@@ -28,6 +32,11 @@ A vision model backend is optional, and only needed for semantic naming. The
 app detects [Ollama](https://ollama.com) and
 [llama.cpp](https://github.com/ggml-org/llama.cpp) if you have them, and can
 download a model into either.
+
+![MacShapearator settings](docs/settings.png)
+
+*Readiness is the engine's own verdict, not a second implementation of it, so
+both backends behave identically and every catalog model is one click away.*
 
 ---
 
