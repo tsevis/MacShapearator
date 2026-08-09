@@ -165,6 +165,9 @@ def run(args: argparse.Namespace, backend_root: Path) -> int:
             "recoverable": True,
         })
         return 2
+    except OSError as exc:
+        emit("ERROR", {"kind": "extraction", "message": _describe_os_error(exc, output_dir)})
+        return 1
     except Exception as exc:
         emit("ERROR", {"kind": "extraction", "message": str(exc) or exc.__class__.__name__})
         return 1
@@ -193,6 +196,29 @@ def run(args: argparse.Namespace, backend_root: Path) -> int:
         "warnings": list(result.warnings),
     })
     return 0
+
+
+# macOS gates these behind a privacy prompt. A denied app does not get a clean
+# "permission denied": writes fail as if the path simply were not there.
+_PROTECTED_FOLDERS = ("Desktop", "Documents", "Downloads")
+
+
+def _describe_os_error(exc: OSError, output_dir: Path) -> str:
+    """Turn a bare errno into something the user can act on."""
+    base = str(exc) or exc.__class__.__name__
+    try:
+        relative = output_dir.resolve().relative_to(Path.home())
+        protected = relative.parts and relative.parts[0] in _PROTECTED_FOLDERS
+    except (ValueError, OSError):
+        protected = False
+    if protected:
+        return (
+            f"{base}\n\nmacOS may be blocking access to your "
+            f"{output_dir.resolve().relative_to(Path.home()).parts[0]} folder. "
+            "Grant MacShapearator access in System Settings > Privacy & Security > "
+            "Files and Folders, or choose an output folder elsewhere."
+        )
+    return base
 
 
 def _engine_version(backend_root: Path) -> str:

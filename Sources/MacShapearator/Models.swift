@@ -27,6 +27,48 @@ struct ExtractionSettings: Codable, Equatable {
     var lastOutputDir: String = ""
 }
 
+extension KeyedDecodingContainer {
+    /// Decode a key, falling back to `fallback` when it is absent or unreadable.
+    func value<T: Decodable>(_ key: Key, or fallback: T) -> T {
+        ((try? decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback
+    }
+}
+
+// Declared in an extension so the memberwise/default initializer survives.
+extension ExtractionSettings {
+    /// Decode tolerantly: a settings file written by an older build lacks the
+    /// keys added since, and Swift's synthesized Decodable would throw on the
+    /// first one — discarding everything the user had configured. Each field
+    /// falls back to its default individually, mirroring how the engine's
+    /// settings_schema degrades a stale config.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = ExtractionSettings()
+        self.init()
+        backendRoot = container.value(.backendRoot, or: fallback.backendRoot)
+        pythonPath = container.value(.pythonPath, or: fallback.pythonPath)
+        provider = container.value(.provider, or: fallback.provider)
+        ollamaURL = container.value(.ollamaURL, or: fallback.ollamaURL)
+        ollamaModel = container.value(.ollamaModel, or: fallback.ollamaModel)
+        llamacppURL = container.value(.llamacppURL, or: fallback.llamacppURL)
+        llamacppModel = container.value(.llamacppModel, or: fallback.llamacppModel)
+        modelsRoot = container.value(.modelsRoot, or: fallback.modelsRoot)
+        localModelRoot = container.value(.localModelRoot, or: fallback.localModelRoot)
+        localModelName = container.value(.localModelName, or: fallback.localModelName)
+        semanticNaming = container.value(.semanticNaming, or: fallback.semanticNaming)
+        defaultFormats = container.value(.defaultFormats, or: fallback.defaultFormats)
+        outputWidth = container.value(.outputWidth, or: fallback.outputWidth)
+        outputHeight = container.value(.outputHeight, or: fallback.outputHeight)
+        canvasMode = container.value(.canvasMode, or: fallback.canvasMode)
+        bitmapExportMode = container.value(.bitmapExportMode, or: fallback.bitmapExportMode)
+        padding = container.value(.padding, or: fallback.padding)
+        minArea = container.value(.minArea, or: fallback.minArea)
+        mergeGap = container.value(.mergeGap, or: fallback.mergeGap)
+        lastInputPath = container.value(.lastInputPath, or: fallback.lastInputPath)
+        lastOutputDir = container.value(.lastOutputDir, or: fallback.lastOutputDir)
+    }
+}
+
 // MARK: - Engine-reported model runtime
 //
 // These mirror services/model_registry.py and services/first_run.py. Discovery

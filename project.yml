@@ -43,6 +43,13 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.graphics-design
         INFOPLIST_KEY_NSHighResolutionCapable: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: "Tsevis"
+        # Desktop, Documents and Downloads are TCC-protected. Without a reason
+        # string macOS denies access without prompting, and the extraction fails
+        # with a bare "No such file or directory" when writing to those folders.
+        INFOPLIST_KEY_NSDesktopFolderUsageDescription: "MacShapearator needs access to read icon sheets from your Desktop and write extracted icons there."
+        INFOPLIST_KEY_NSDocumentsFolderUsageDescription: "MacShapearator needs access to read icon sheets from your Documents and write extracted icons there."
+        INFOPLIST_KEY_NSDownloadsFolderUsageDescription: "MacShapearator needs access to read icon sheets from your Downloads and write extracted icons there."
+        INFOPLIST_KEY_NSRemovableVolumesUsageDescription: "MacShapearator needs access to read icon sheets from external volumes and write extracted icons there."
 schemes:
   MacShapearator:
     build:
