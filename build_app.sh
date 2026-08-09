@@ -13,11 +13,16 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# Keep in step with MINIMUM_ENGINE_VERSION in Sources/MacShapearator/AppRuntime.swift.
+# The oldest engine this app can talk to -- keep in step with
+# minimumEngineVersion in Sources/MacShapearator/AppRuntime.swift.
 MINIMUM_ENGINE="v0.4.1"
+# The engine actually shipped: the newest release tested against this app.
+# Deliberately not the minimum, or every build would ship the oldest engine
+# still supported rather than the current one.
+DEFAULT_ENGINE="v0.4.2"
 
 SHAPEARATOR_SRC="${SHAPEARATOR_SRC:-../shapearator}"
-SHAPEARATOR_REF="${SHAPEARATOR_REF:-$MINIMUM_ENGINE}"
+SHAPEARATOR_REF="${SHAPEARATOR_REF:-$DEFAULT_ENGINE}"
 INKSCAPE_APP="${INKSCAPE_APP:-/Applications/Inkscape.app}"
 
 die() { print -u2 "error: $*"; exit 1; }
