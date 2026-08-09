@@ -11,7 +11,7 @@
 		328BBB7136DC80527F2ECA0E /* BundledPython in Resources */ = {isa = PBXBuildFile; fileRef = 16DC1C167B879C17A14803AC /* BundledPython */; };
 		3FBF1736D6605B66E672818F /* AppRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 957DAB38D1C1CB2186AA484E /* AppRuntime.swift */; };
 		4B19525983BA27B79692B45B /* MacShapearatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA7DE5235DC4425E7DC9929 /* MacShapearatorApp.swift */; };
-		724E53876FB752854AC0D942 /* OllamaRuntimeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267FB0E7F7F270F0E59F983B /* OllamaRuntimeViewModel.swift */; };
+		56E3E6AB5C59B83065CF4D18 /* BridgeRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089793E0AE53A9D16B0F58BF /* BridgeRunner.swift */; };
 		9359B7532D6B5199312D79EE /* BundledBackend in Resources */ = {isa = PBXBuildFile; fileRef = 160595AD49ADCB3C8CE9A800 /* BundledBackend */; };
 		93E73E17B0972E293B9F2CD4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D6B62472B0A794BF21FC6683 /* Assets.xcassets */; };
 		9E3419948BBF06E65D3B5FE3 /* ExtractionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6BED9ECB0A5D8334C3B9BDA /* ExtractionBridge.swift */; };
@@ -20,6 +20,7 @@
 		C0E91C43EDD438056ECBAB0E /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04109EA544128713FE0CAEF3 /* WorkspaceView.swift */; };
 		C23C90849F0755C2FF2FF02C /* IconVariants in Resources */ = {isa = PBXBuildFile; fileRef = 533B8EF8715D5D3B37488FC6 /* IconVariants */; };
 		CC8570C916E6D9F29AD149AD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D59B406E733DC15224076183 /* SettingsView.swift */; };
+		D7095DEBE3376E254ACDA76C /* ModelRuntimeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC48212DC3C69303C2F9815C /* ModelRuntimeViewModel.swift */; };
 		E4E86E3B429CAD91ED0C2E2D /* BundledBin in Resources */ = {isa = PBXBuildFile; fileRef = 963981BE67C5E95C33C1AE69 /* BundledBin */; };
 		E7C3EF5420FBD52B105A6BF3 /* ThirdParty in Resources */ = {isa = PBXBuildFile; fileRef = 85453E12279C208B05B26851 /* ThirdParty */; };
 		E7FBA1937BFFF92EA5DF5ED5 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA13BA13B9DE81F33B5D01E /* Models.swift */; };
@@ -27,16 +28,17 @@
 
 /* Begin PBXFileReference section */
 		04109EA544128713FE0CAEF3 /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
+		089793E0AE53A9D16B0F58BF /* BridgeRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeRunner.swift; sourceTree = "<group>"; };
 		160595AD49ADCB3C8CE9A800 /* BundledBackend */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BundledBackend; path = Resources/BundledBackend; sourceTree = SOURCE_ROOT; };
 		16DC1C167B879C17A14803AC /* BundledPython */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BundledPython; path = Resources/BundledPython; sourceTree = SOURCE_ROOT; };
 		1ACFBDDDE2F133F498986C06 /* MacShapearator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacShapearator.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		267FB0E7F7F270F0E59F983B /* OllamaRuntimeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaRuntimeViewModel.swift; sourceTree = "<group>"; };
 		533B8EF8715D5D3B37488FC6 /* IconVariants */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IconVariants; path = Resources/IconVariants; sourceTree = SOURCE_ROOT; };
 		5F56695D819E9C0537F74BA9 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		7976261233541FCC30FCF57E /* Scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Scripts; path = Resources/Scripts; sourceTree = SOURCE_ROOT; };
 		85453E12279C208B05B26851 /* ThirdParty */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ThirdParty; path = Resources/ThirdParty; sourceTree = SOURCE_ROOT; };
 		957DAB38D1C1CB2186AA484E /* AppRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRuntime.swift; sourceTree = "<group>"; };
 		963981BE67C5E95C33C1AE69 /* BundledBin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BundledBin; path = Resources/BundledBin; sourceTree = SOURCE_ROOT; };
+		AC48212DC3C69303C2F9815C /* ModelRuntimeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRuntimeViewModel.swift; sourceTree = "<group>"; };
 		B3877766BC91D7AF3A75D474 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		B6BED9ECB0A5D8334C3B9BDA /* ExtractionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractionBridge.swift; sourceTree = "<group>"; };
 		CEA13BA13B9DE81F33B5D01E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -50,10 +52,11 @@
 			isa = PBXGroup;
 			children = (
 				957DAB38D1C1CB2186AA484E /* AppRuntime.swift */,
+				089793E0AE53A9D16B0F58BF /* BridgeRunner.swift */,
 				B6BED9ECB0A5D8334C3B9BDA /* ExtractionBridge.swift */,
 				FBA7DE5235DC4425E7DC9929 /* MacShapearatorApp.swift */,
+				AC48212DC3C69303C2F9815C /* ModelRuntimeViewModel.swift */,
 				CEA13BA13B9DE81F33B5D01E /* Models.swift */,
-				267FB0E7F7F270F0E59F983B /* OllamaRuntimeViewModel.swift */,
 				5F56695D819E9C0537F74BA9 /* RootView.swift */,
 				B3877766BC91D7AF3A75D474 /* SettingsStore.swift */,
 				D59B406E733DC15224076183 /* SettingsView.swift */,
@@ -168,10 +171,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				3FBF1736D6605B66E672818F /* AppRuntime.swift in Sources */,
+				56E3E6AB5C59B83065CF4D18 /* BridgeRunner.swift in Sources */,
 				9E3419948BBF06E65D3B5FE3 /* ExtractionBridge.swift in Sources */,
 				4B19525983BA27B79692B45B /* MacShapearatorApp.swift in Sources */,
+				D7095DEBE3376E254ACDA76C /* ModelRuntimeViewModel.swift in Sources */,
 				E7FBA1937BFFF92EA5DF5ED5 /* Models.swift in Sources */,
-				724E53876FB752854AC0D942 /* OllamaRuntimeViewModel.swift in Sources */,
 				A6E9D5108D4E08EBC16CC8CE /* RootView.swift in Sources */,
 				20270C1297D0713CEF8B21AA /* SettingsStore.swift in Sources */,
 				CC8570C916E6D9F29AD149AD /* SettingsView.swift in Sources */,

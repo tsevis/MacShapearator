@@ -59,6 +59,39 @@ Every external location is discovered automatically and can be overridden:
 | `INKSCAPE_APP` | Inkscape to bundle | `/Applications/Inkscape.app` |
 | `POTRACE_PREFIX` | potrace install prefix | `brew --prefix potrace` |
 
+## Distribution
+
+```bash
+./build_app.sh      # assemble the app
+./release.sh        # sign, notarize, and build a .dmg
+```
+
+`release.sh` needs an Apple Developer account. It never handles credentials
+directly: signing uses a `Developer ID Application` identity already in your
+keychain, and notarization uses a `notarytool` keychain profile you create once:
+
+```bash
+xcrun notarytool store-credentials MacShapearator --apple-id you@example.com --team-id TEAMID
+```
+
+Run with `SKIP_NOTARIZE=1` to sign and package without submitting to Apple.
+Publish the disk image as a release asset — never commit it.
+
+### What gets bundled
+
+`build_app.sh` copies the interpreter core *without* its site-packages and then
+installs only the engine's five requirements. Rsyncing a development
+interpreter wholesale is how the bundle once reached 4.5 GB, carrying
+TensorFlow, PyTorch and JAX that Shapearator never imports.
+
+It also refuses to bundle a Conda prefix or the Xcode system Python, neither of
+which can be relocated into an app; set `PYTHON_SRC` to a pyenv version or a
+python.org framework build if discovery picks nothing.
+
+Inkscape's tutorials, translations and examples are stripped, since it is used
+headlessly for `--query-all` and PNG export. That invalidates Inkscape's own
+signature, so `release.sh` re-signs every nested binary inside-out.
+
 ## Engine versioning
 
 The bundled engine is a build artifact, never a checked-in copy — `build_app.sh`

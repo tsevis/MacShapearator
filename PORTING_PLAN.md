@@ -91,10 +91,12 @@ Each was confirmed by reading or running the code, not inferred.
 
 5. ~~**Hardcoded personal paths.**~~ **FIXED.** Defaults are empty and resolved at runtime; `build_app.sh` discovers its inputs.
 
-6. **The bundle is ~7 GB.** `build_app.sh:14` rsyncs an entire pyenv, which on
-   this machine includes TensorFlow, PyTorch, JAX, polars and llvmlite — none of
-   which Shapearator uses. Its real dependencies are opencv-python, numpy,
-   Pillow, requests and huggingface_hub.
+6. ~~**The bundle is ~7 GB.**~~ **FIXED in Phase 4.** `build_app.sh` rsynced an
+   entire development interpreter: 4.4 GB of its 4.5 GB was site-packages, of
+   which only `cv2` (119 MB) is used — TensorFlow alone was 936 MB. The
+   interpreter core is now copied without site-packages and the engine's five
+   requirements installed into it (245 MB measured), and Inkscape's tutorials,
+   translations and examples are stripped (671 MB → 512 MB).
 
 7. ~~**`.swift_previews/` in the user's output folder.**~~ **FIXED.** Thumbnails go to a per-run temporary directory.
 
@@ -222,23 +224,40 @@ Extend `Models.swift` accordingly; every field already exists engine-side.
 
 ---
 
-## 8. Phase 4 — Distribution (2–3 days)
+## 8. Phase 4 — Distribution (2–3 days) — **DONE** (signing needs your Apple account)
 
-This is what turns a working app into a shippable one.
+- [x] **Slim the interpreter.** The old script rsynced a development
+      interpreter wholesale: 4.4 GB of its 4.5 GB was site-packages, and only
+      `cv2` (119 MB) is used — TensorFlow alone was 936 MB. `build_app.sh` now
+      copies the interpreter core without site-packages and installs the
+      engine's five requirements into it, then verifies they import before
+      shipping. It also refuses Conda prefixes and the Xcode system Python,
+      neither of which relocates into an app.
+      *(`opencv-python-headless` was measured as an alternative and is
+      byte-for-byte the same size, so the engine's requirements stay as they
+      are.)*
+- [x] **Slim Inkscape.** Tutorials, translations, examples and man pages are
+      stripped — it runs headlessly for `--query-all` and PNG export. The
+      bundle is ad-hoc re-signed afterwards, and the build now *fails* rather
+      than warns if the bundled Inkscape does not run.
+- [x] **Codesign and notarize**: `release.sh` signs nested code inside-out,
+      applies a hardened runtime with entitlements for spawning the bundled
+      interpreter, builds a `.dmg`, and submits it to Apple.
+- [x] **Ship the .dmg as a release asset**, never in the repository.
 
-- **Slim the interpreter.** Build a purpose-made venv from
-  `requirements.txt` instead of rsyncing a personal pyenv. Expected ~7 GB → ~250–350 MB.
-  Strip tests, `__pycache__`, and unused `site-packages`.
-- **Slim Inkscape.** 626 MB is most of the remainder. Evaluate replacing it with
-  `resvg` or `librsvg` (a few MB) for rasterisation; note that
-  `services/svg_ops.query_svg_boxes` depends on `inkscape --query-all`, so this
-  needs an engine-side abstraction — worth doing, and it also fixes the
-  one-process-per-icon performance issue noted in the engine backlog.
-- **Codesign and notarize**; the app spawns subprocesses and needs correct
-  entitlements and a hardened runtime.
-- **Ship the .dmg as a GitHub release asset**, never in the repository.
+`release.sh` needs an Apple Developer account, which this work could not
+supply: signing uses a `Developer ID Application` identity from your keychain,
+and notarization a `notarytool` keychain profile you create once. Neither is
+ever passed on a command line or written to disk. Run with `SKIP_NOTARIZE=1`
+to sign and package without submitting.
 
----
+### Remaining size
+
+Inkscape is now the bundle's floor. Getting below it means replacing
+`inkscape --query-all` with a library that can report per-element bounds —
+the engine-side abstraction noted in §3, which would also fix the
+one-Inkscape-process-per-icon cost. That is a Shapearator change, not a
+MacShapearator one.
 
 ## 9. Phase 5 — Testing (ongoing, start in Phase 1)
 
