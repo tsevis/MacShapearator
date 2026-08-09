@@ -1,12 +1,39 @@
 # MacShapearator
 
-A native macOS app for [Shapearator](https://github.com/tsevis/shapearator) —
-turn one sheet full of icons into a tidy set of cropped, named, organized files.
+A native macOS app for [Shapearator](https://github.com/tsevis/shapearator).
+
+Version `0.4.2`
 
 ![MacShapearator workspace](docs/workspace.png)
 
-Everything ships inside the app. There is no Python to install, no Inkscape to
-find, no `PATH` to configure — and nothing leaves your Mac.
+## The problem this solves
+
+Designers and illustrators rarely draw one icon at a time. You fill a page with
+forty sketches, or lay a whole set out on a single artboard, or scan a sheet of
+brush marks. The artwork is finished — but it is all in one file, and it is
+useless that way.
+
+What you actually need is forty separate assets: each cropped to its own
+drawing, sitting on a consistent canvas so they line up in a grid, exported in
+whatever formats the project wants, and named something you can find again in
+six months. By hand that means selecting, cropping, centring, exporting and
+typing a filename forty times over — an afternoon of mechanical work whose only
+real skill is patience, and whose results are never quite consistent.
+
+**MacShapearator does that pass for you.** Point it at the sheet; it finds every
+individual object, separates it, centres it on a shared canvas, writes each
+format you asked for, and records what it did.
+
+The naming tends to be the surprise. Instead of `icon_001.png`, a vision model
+running on your own Mac *looks* at each extracted icon and names it for what it
+is — `lightbulb.png`, `saxophone.png`, `drumset.png` — with tags and a
+confidence score in its metadata. The output stops being a numbered pile and
+becomes something you can search.
+
+Everything ships inside the app: the extraction engine, its Python runtime,
+Inkscape and potrace are all bundled. There is nothing to install, nothing to
+put on your `PATH`, and nothing leaves your Mac — the vision models run locally
+and the endpoints are restricted to `localhost`.
 
 *Above: nine instruments extracted from one vector sheet and named by a local
 model. The drum kit is drawn as nineteen separate paths and stays a single
@@ -176,5 +203,9 @@ Publish the disk image as a release asset — never commit it.
 
 ## License
 
-Shapearator and MacShapearator are by Charis Tsevis. Bundled third-party
-components — Python, Inkscape, potrace — keep their own licenses.
+MIT — see [LICENSE](LICENSE). Created by Charis Tsevis.
+
+Components bundled into the packaged app keep their own licenses: Python (PSF),
+Inkscape (GPL-2.0-or-later), and potrace (GPL-2.0-or-later). They are shipped
+as separate executables the app invokes, not linked into it. If you redistribute
+a built `.app`, those terms travel with it.
