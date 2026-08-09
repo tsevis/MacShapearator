@@ -1,0 +1,29 @@
+# --- macOS / Xcode ---
+.DS_Store
+/.build
+/build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+
+# --- Build outputs ---
+# The packaged disk image is ~1.7 GB; publish it as a release asset instead.
+*.dmg
+*.app
+
+# --- Vendored runtimes and third-party binaries (not ours to redistribute) ---
+# BundledPython is a ~4.5 GB interpreter tree; ThirdParty holds Inkscape.app
+# (~626 MB) and BundledBin holds potrace. build_app.sh assembles these at
+# package time -- see PORTING_PLAN.md.
+/Resources/BundledPython/
+/Resources/ThirdParty/
+/Resources/BundledBin/
+
+# --- Vendored Python engine ---
+# A copy of the Shapearator engine, synced from the source repo at build time.
+# Keeping a second copy under version control is what let the shipped app drift
+# onto an old, buggy engine; the source of truth is github.com/tsevis/shapearator.
+/Resources/BundledBackend/
