@@ -170,13 +170,21 @@ install_name_tool -change \
   Resources/BundledBin/potrace
 
 # --- Build -----------------------------------------------------------------
+# Release by default. A Debug build makes the main executable a thin shim that
+# loads the real code from MacShapearator.debug.dylib, and ships __preview.dylib
+# alongside it — Xcode's SwiftUI preview scaffolding. Both end up inside the
+# distributed disk image, and both have to be Developer ID signed for
+# notarization to pass. Release produces a single ordinary executable instead.
+# Pass "Debug" as the first argument when working on previews locally.
+CONFIG="${1:-Release}"
+
 xcodegen generate
 xcodebuild \
   -project MacShapearator.xcodeproj \
   -scheme MacShapearator \
-  -configuration Debug \
+  -configuration "$CONFIG" \
   -derivedDataPath build \
   build
 
-print "Built app: $(pwd)/build/Build/Products/Debug/MacShapearator.app"
+print "Built app: $(pwd)/build/Build/Products/$CONFIG/MacShapearator.app"
 print "Bundled engine: $SHAPEARATOR_REF"
