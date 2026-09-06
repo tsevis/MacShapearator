@@ -30,3 +30,9 @@ DerivedData/
 
 # Packaging copy of Scripts/extract_bridge.py, written by build_app.sh.
 /Resources/Scripts/
+
+# --- Generated Xcode project ---
+# build_app.sh runs `xcodegen generate` before every build, so a committed
+# .xcodeproj is an output of project.yml that every build silently dirties.
+# project.yml is the source of truth.
+/MacShapearator.xcodeproj/
