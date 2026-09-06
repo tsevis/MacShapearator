@@ -108,7 +108,7 @@ Each was confirmed by reading or running the code, not inferred.
 
 ---
 
-## 4. Phase 0 — Foundation (½ day) — **DONE** (except the .dmg decision)
+## 4. Phase 0 — Foundation (½ day) — **DONE**
 
 Make the project buildable by someone other than its author.
 
@@ -123,8 +123,9 @@ Make the project buildable by someone other than its author.
         the environment with sensible discovery, not literals.
 - [x] De-duplicate the bridge: keep `Scripts/extract_bridge.py`, have
       `build_app.sh` copy it into `Resources/` at package time.
-- [ ] Decide the fate of the 1.7 GB `MacShapearator.dmg` in the working tree
-      (delete locally; publish future builds as GitHub release assets).
+- [x] Decide the fate of the 1.7 GB `MacShapearator.dmg` in the working tree:
+      deleted locally, along with the superseded Debug `MacShapearator-1.0.dmg`.
+      `*.dmg` stays gitignored; future builds ship as GitHub release assets.
 
 **Done when:** a fresh clone builds and runs on a Mac that has never seen this
 project, with no path editing.
