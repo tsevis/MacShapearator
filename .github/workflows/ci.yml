@@ -14,7 +14,7 @@ jobs:
     name: Swift tests
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: swift --version
       - run: swift build
       - run: swift test
@@ -23,7 +23,7 @@ jobs:
     name: End-to-end extraction
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # The engine is a build input, not a checked-in copy. Use the same ref
       # build_app.sh ships, so CI exercises what users get.
@@ -34,13 +34,13 @@ jobs:
           test -n "$ref"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: tsevis/shapearator
           ref: ${{ steps.engine.outputs.ref }}
           path: engine
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.10'
 
