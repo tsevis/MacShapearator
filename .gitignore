@@ -37,3 +37,9 @@ DerivedData/
 # .xcodeproj is an output of project.yml that every build silently dirties.
 # project.yml is the source of truth.
 /MacShapearator.xcodeproj/
+
+# --- Python ---
+# Bytecode and pytest scratch from the bridge contract tests.
+__pycache__/
+*.py[cod]
+.pytest_cache/
