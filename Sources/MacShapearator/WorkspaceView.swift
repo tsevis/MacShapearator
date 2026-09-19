@@ -12,6 +12,8 @@ private let bitmapModeLabels: [(String, String)] = [
     ("transparent_preserve_interior", "B. Export transparent bitmaps while preserving enclosed white details."),
 ]
 
+private let customPresetName = "Custom"
+
 private let detectionPresets: [(String, (Int, Int, Int))] = [
     ("Balanced", (12, 200, 13)),
     ("Tiny Details", (8, 70, 9)),
@@ -67,12 +69,9 @@ struct WorkspaceView: View {
     }
 
     private var rightColumn: some View {
-        VStack(spacing: 12) {
-            previewCard.frame(height: 250)
-            resultsCard.frame(maxHeight: .infinity)
-        }
-        .frame(width: 500)
-        .frame(maxHeight: .infinity, alignment: .top)
+        ResultsPane(viewModel: viewModel)
+            .frame(width: 500)
+            .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var sourceCard: some View {
@@ -104,6 +103,11 @@ struct WorkspaceView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Picker("Preset", selection: $selectedPreset) {
+                            // Hand-tuned values are not one of the presets;
+                            // showing "Balanced" for them is simply untrue.
+                            if selectedPreset == customPresetName {
+                                Text(customPresetName).tag(customPresetName)
+                            }
                             ForEach(detectionPresets.map(\.0), id: \.self) { name in
                                 Text(name).tag(name)
                             }
@@ -179,14 +183,24 @@ struct WorkspaceView: View {
     private var runCard: some View {
         GroupBox("Run") {
             VStack(spacing: 10) {
-                Button(action: runExtraction) {
-                    Text("Extract Icons")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                HStack(spacing: 10) {
+                    Button(action: runExtraction) {
+                        Text(viewModel.isRunning ? "Extracting…" : "Extract Icons")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    // A second run would write the same output folder as the
+                    // first, from a second engine process.
+                    .disabled(viewModel.isRunning)
+
+                    if viewModel.isRunning {
+                        Button("Stop") { viewModel.cancel() }
+                            .controlSize(.large)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
 
                 Text(statusLine)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -200,78 +214,8 @@ struct WorkspaceView: View {
         }
     }
 
-    private var previewCard: some View {
-        GroupBox("Preview") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(previewMetaText)
-                    .font(.headline)
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.gray.opacity(0.18))
-                    if let image = previewImage {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .padding(18)
-                    } else {
-                        Text("No preview yet.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.top, 4)
-        }
-    }
-
-    private var resultsCard: some View {
-        GroupBox("Extracted Items") {
-            List(selection: Binding(
-                get: { viewModel.selectedIcon?.id },
-                set: { newValue in
-                    viewModel.selectedIcon = viewModel.result?.icons.first(where: { $0.id == newValue })
-                }
-            )) {
-                ForEach(viewModel.result?.icons ?? []) { icon in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(icon.stem)
-                                .font(.headline)
-                            Text("\(icon.primaryFormatsText)  |  \(icon.sourceText)  |  \(icon.canvasText)")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-                        Spacer()
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { viewModel.selectedIcon = icon }
-                }
-            }
-            .listStyle(.plain)
-            .padding(.top, 4)
-        }
-    }
-
-    private var previewMetaText: String {
-        guard let icon = viewModel.selectedIcon else { return "No preview yet." }
-        return "\(icon.stem)  |  source \(icon.sourceText)  |  canvas \(icon.canvasText)"
-    }
-
-    private var previewImage: NSImage? {
-        guard let url = viewModel.selectedIcon?.previewURL else { return nil }
-        return NSImage(contentsOf: url)
-    }
-
     private var providerSummary: String {
-        let settings = settingsStore.settings
-        switch settings.provider {
-        case "ollama":
-            return "Active provider: Ollama local (\(settings.ollamaModel))"
-        case "directory":
-            return "Active provider: Local directory (\(settings.localModelName.isEmpty ? "directory catalog" : settings.localModelName))"
-        default:
-            return "Active provider: Geometry-only local extraction"
-        }
+        ProviderSummary.text(for: settingsStore.settings)
     }
 
     private var statusLine: String {
@@ -392,7 +336,7 @@ struct WorkspaceView: View {
         for (name, values) in detectionPresets where values.0 == settings.padding && values.1 == settings.minArea && values.2 == settings.mergeGap {
             return name
         }
-        return "Balanced"
+        return customPresetName
     }
 
     private func applyPreset(_ name: String) {
