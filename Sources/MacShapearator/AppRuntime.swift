@@ -16,35 +16,25 @@ enum AppRuntime {
     static let bundledScriptsFolder = "Scripts"
     static let bridgeScriptName = "extract_bridge.py"
 
+    /// Find a bundled resource. A packaged app carries these at the bundle's
+    /// resource root; a build that keeps the folder reference nests them one
+    /// level down. Four copies of this search is how they drifted apart.
+    private static func bundledResource(_ relativePath: String) -> URL? {
+        guard let root = Bundle.main.resourceURL else { return nil }
+        let candidates = [
+            root.appendingPathComponent(relativePath),
+            root.appendingPathComponent("Resources", isDirectory: true)
+                .appendingPathComponent(relativePath),
+        ]
+        return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     static func bundledBackendRoot() -> URL? {
-        if let direct = Bundle.main.resourceURL?.appendingPathComponent(bundledBackendFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: direct.path) {
-            return direct
-        }
-        if let nested = Bundle.main.resourceURL?
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent(bundledBackendFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: nested.path) {
-            return nested
-        }
-        return nil
+        bundledResource(bundledBackendFolder)
     }
 
     static func bundledBridgeScript(named name: String = bridgeScriptName) -> URL? {
-        if let direct = Bundle.main.resourceURL?
-            .appendingPathComponent(bundledScriptsFolder, isDirectory: true)
-            .appendingPathComponent(name),
-           FileManager.default.fileExists(atPath: direct.path) {
-            return direct
-        }
-        if let nested = Bundle.main.resourceURL?
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent(bundledScriptsFolder, isDirectory: true)
-            .appendingPathComponent(name),
-           FileManager.default.fileExists(atPath: nested.path) {
-            return nested
-        }
-        return nil
+        bundledResource("\(bundledScriptsFolder)/\(name)")
     }
 
     static func resolveBackendRoot(from configuredPath: String) -> URL? {
@@ -88,17 +78,7 @@ enum AppRuntime {
     static let engineBridgeScriptName = "engine_bridge.py"
 
     static func bundledPythonRoot() -> URL? {
-        if let direct = Bundle.main.resourceURL?.appendingPathComponent(bundledPythonFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: direct.path) {
-            return direct
-        }
-        if let nested = Bundle.main.resourceURL?
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent(bundledPythonFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: nested.path) {
-            return nested
-        }
-        return nil
+        bundledResource(bundledPythonFolder)
     }
 
     static func bundledPythonExecutableURL() -> URL? {
@@ -108,37 +88,14 @@ enum AppRuntime {
     }
 
     static func bundledBinDirectory() -> URL? {
-        if let direct = Bundle.main.resourceURL?.appendingPathComponent(bundledBinFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: direct.path) {
-            return direct
-        }
-        if let nested = Bundle.main.resourceURL?
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent(bundledBinFolder, isDirectory: true),
-           FileManager.default.fileExists(atPath: nested.path) {
-            return nested
-        }
-        return nil
+        bundledResource(bundledBinFolder)
     }
 
     static func bundledInkscapeExecutable() -> URL? {
-        let candidates: [URL?] = [
-            Bundle.main.resourceURL?
-                .appendingPathComponent(bundledThirdPartyFolder, isDirectory: true)
-                .appendingPathComponent(bundledInkscapeAppFolder, isDirectory: true)
-                .appendingPathComponent("Contents/MacOS/inkscape"),
-            Bundle.main.resourceURL?
-                .appendingPathComponent("Resources", isDirectory: true)
-                .appendingPathComponent(bundledThirdPartyFolder, isDirectory: true)
-                .appendingPathComponent(bundledInkscapeAppFolder, isDirectory: true)
-                .appendingPathComponent("Contents/MacOS/inkscape"),
-        ]
-        for candidate in candidates {
-            if let candidate, FileManager.default.isExecutableFile(atPath: candidate.path) {
-                return candidate
-            }
-        }
-        return nil
+        let relative = "\(bundledThirdPartyFolder)/\(bundledInkscapeAppFolder)/Contents/MacOS/inkscape"
+        guard let executable = bundledResource(relative),
+              FileManager.default.isExecutableFile(atPath: executable.path) else { return nil }
+        return executable
     }
 
     static func resolvePythonExecutable(from configuredPath: String) -> URL? {

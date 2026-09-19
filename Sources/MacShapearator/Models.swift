@@ -99,6 +99,21 @@ struct BackendAvailability: Codable, Equatable {
     let llamacppBinary: Bool
 }
 
+extension BackendAvailability {
+    /// The engine probes the backends once per command, so a refresh produces
+    /// two reports seconds apart. Trust whichever one got an answer: a probe
+    /// can time out and report a running backend as absent, but it cannot
+    /// invent one, and a wrong "available" is corrected by preflight at once
+    /// while a wrong "not running" hides a working backend behind a dead end.
+    static func merged(_ first: BackendAvailability?, _ second: BackendAvailability?) -> BackendAvailability? {
+        guard let first else { return second }
+        guard let second else { return first }
+        return BackendAvailability(
+            ollamaReachable: first.ollamaReachable || second.ollamaReachable,
+            llamacppBinary: first.llamacppBinary || second.llamacppBinary)
+    }
+}
+
 struct ModelsRecord: Codable {
     let backends: BackendAvailability
     let ollama: [ModelDescriptorRecord]

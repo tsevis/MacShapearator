@@ -19,7 +19,7 @@ final class ModelRuntimeViewModel: ObservableObject {
     @Published var statusMessage = "Checking local model runtimes..."
     @Published var lastError: String?
 
-    var backends: BackendAvailability? { models?.backends ?? setup?.backends }
+    var backends: BackendAvailability? { .merged(models?.backends, setup?.backends) }
     var isInstalling: Bool { installingKey != nil }
 
     /// Vision models the engine can actually use for the active provider.
@@ -41,10 +41,12 @@ final class ModelRuntimeViewModel: ObservableObject {
         isRefreshing = true
         statusMessage = "Checking local model runtimes..."
         Task {
-            async let discovered = query(ModelsRecord.self, tag: "MODELS", command: "models", settings: settings)
-            async let status = query(SetupStatusRecord.self, tag: "SETUP", command: "setup-status", settings: settings)
-            models = await discovered
-            setup = await status
+            // Sequentially, not concurrently: both commands start a Python
+            // interpreter that imports the engine, and two cold starts racing
+            // each other have been seen to time out one backend probe and
+            // report a running Ollama as absent.
+            models = await query(ModelsRecord.self, tag: "MODELS", command: "models", settings: settings)
+            setup = await query(SetupStatusRecord.self, tag: "SETUP", command: "setup-status", settings: settings)
             await refreshPreflight(using: settings)
             isRefreshing = false
         }
@@ -82,7 +84,8 @@ final class ModelRuntimeViewModel: ObservableObject {
                     switch event.tag {
                     case "PROGRESS":
                         if let progress = event.decode(InstallProgressRecord.self) {
-                            Task { @MainActor in
+                            // Awaited, so progress cannot arrive out of order.
+                            await MainActor.run {
                                 self.installProgress = progress.fraction
                                 self.statusMessage = progress.message
                             }
