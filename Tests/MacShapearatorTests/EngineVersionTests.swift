@@ -118,8 +118,26 @@ final class EngineCompatibilityTests: XCTestCase {
         XCTAssertTrue(AppRuntime.isEngineRoot(root))
     }
 
-    func testMinimumMatchesTheShippedEngine() {
-        // Guards against bumping one of build_app.sh / AppRuntime without the other.
-        XCTAssertEqual(AppRuntime.minimumEngineVersion, SemanticVersion(0, 4, 1))
+    /// `build_app.sh` refuses to package an engine below its own
+    /// MINIMUM_ENGINE, and the app refuses to run one below
+    /// `AppRuntime.minimumEngineVersion`. Two thresholds, one rule: read the
+    /// script rather than restating its number here, where it would drift.
+    func testTheMinimumMatchesTheOneBuildAppScriptEnforces() throws {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // MacShapearatorTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // repository root
+            .appendingPathComponent("build_app.sh")
+        let source = try String(contentsOf: script, encoding: .utf8)
+        let assignment = try XCTUnwrap(
+            source.range(of: #"MINIMUM_ENGINE="[^"]+""#, options: .regularExpression),
+            "build_app.sh no longer declares MINIMUM_ENGINE")
+        let quoted = try XCTUnwrap(source[assignment].range(of: #""[^"]+""#, options: .regularExpression))
+        let declared = try XCTUnwrap(
+            SemanticVersion(source[quoted].trimmingCharacters(in: CharacterSet(charactersIn: "\""))))
+
+        XCTAssertEqual(AppRuntime.minimumEngineVersion, declared,
+                       "build_app.sh packages engines from \(declared); the app requires "
+                       + "\(AppRuntime.minimumEngineVersion)")
     }
 }

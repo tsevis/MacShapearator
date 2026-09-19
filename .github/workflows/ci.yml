@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Swift tests
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift build
+      - run: swift test
+
+  smoke:
+    name: End-to-end extraction
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      # The engine is a build input, not a checked-in copy. Use the same ref
+      # build_app.sh ships, so CI exercises what users get.
+      - name: Resolve the engine ref
+        id: engine
+        run: |
+          ref="$(sed -nE 's/^DEFAULT_ENGINE="([^"]+)".*/\1/p' build_app.sh)"
+          test -n "$ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: tsevis/shapearator
+          ref: ${{ steps.engine.outputs.ref }}
+          path: engine
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # potrace turns the raster crops into SVG; Inkscape is only needed for
+      # SVG *input*, which this smoke run does not use.
+      - run: brew install potrace
+      - run: python -m pip install --quiet -r engine/requirements.txt
+
+      - name: Extract a real sheet and check the result
+        run: |
+          set -euo pipefail
+          mkdir -p smoke/out smoke/previews
+          cat > smoke/settings.json <<'JSON'
+          {"backendRoot":"","pythonPath":"","provider":"geometry",
+           "ollamaURL":"http://127.0.0.1:11434","ollamaModel":"","llamacppURL":"",
+           "llamacppModel":"","modelsRoot":"","localModelRoot":"","localModelName":"",
+           "semanticNaming":false,"defaultFormats":["png","svg"],
+           "outputWidth":512,"outputHeight":512,"canvasMode":"uniform_to_largest",
+           "bitmapExportMode":"transparent_preserve_interior",
+           "padding":12,"minArea":200,"mergeGap":13,
+           "lastInputPath":"","lastOutputDir":""}
+          JSON
+          ( cd engine && python "$GITHUB_WORKSPACE/Scripts/extract_bridge.py" \
+              --settings "$GITHUB_WORKSPACE/smoke/settings.json" \
+              --input docs/base.png \
+              --output "$GITHUB_WORKSPACE/smoke/out" \
+              --preview-dir "$GITHUB_WORKSPACE/smoke/previews" \
+              --formats png svg ) > smoke/stream.txt
+
+          python - <<'PY'
+          import json, pathlib, sys
+
+          lines = pathlib.Path("smoke/stream.txt").read_text().splitlines()
+          events = [line.split("\t", 1) for line in lines if "\t" in line]
+          tags = [tag for tag, _ in events]
+          if "ERROR" in tags:
+              sys.exit("the bridge reported an error:\n" + "\n".join(lines[-5:]))
+          result = next((json.loads(body) for tag, body in events if tag == "RESULT"), None)
+          if result is None:
+              sys.exit("the bridge produced no RESULT line")
+
+          icons = result["icons"]
+          if not icons:
+              sys.exit("the bridge found no icons in the sample sheet")
+          written = list(pathlib.Path("smoke/out").rglob("*.png"))
+          if len(written) != len(icons):
+              sys.exit(f"{len(icons)} icons reported but {len(written)} PNGs on disk")
+          print(f"{len(icons)} icons extracted, engine {result.get('engineVersion')}")
+          PY
