@@ -207,21 +207,23 @@ progress. This is what makes the app installable by a non-technical user.
 
 ---
 
-## 7. Phase 3 — Surface the engine's new state (1 day)
+## 7. Phase 3 — Surface the engine's new state (1 day) — **DONE**
 
 Mirror in SwiftUI what the Tk GUI and CLI already report:
 
-- **Preflight prompt.** On Extract, if the backend is not ready, present the
+- [x] **Preflight prompt.** On Extract, if the backend is not ready, present the
   engine's message with *Export with generic names* / *Cancel* — the same choice
   `--allow-unnamed` gives the CLI.
-- **Naming outcome.** "4 named via ollama/qwen2.5vl:3b", or "3 named, 1 failed"
-  with per-icon status in the results list and the reason on the failed row.
-- **Replacement report.** "94 files replaced from the previous run" and the
-  first-run warning about untracked files left in place — this is a
-  destructive-looking operation and the user should see what happened.
-- **Warnings** in a non-modal banner rather than a blocking alert.
+- [x] **Naming outcome.** The run summary reports "3 named, 1 failed";
+  `ResultsPane` marks each failed row and prints the engine's reason on it,
+  and the preview header carries the model's tags and confidence.
+- [x] **Replacement report.** "94 files replaced from the previous run" in the
+  completion line.
+- [x] **Warnings** in a non-modal banner (`ResultsPane.warningsCard`) rather
+  than a blocking alert.
 
-Extend `Models.swift` accordingly; every field already exists engine-side.
+Every field already existed in `Models.swift`; until this phase the app
+decoded them and showed none of them.
 
 ---
 
@@ -262,17 +264,19 @@ MacShapearator one.
 
 ## 9. Phase 5 — Testing (ongoing, start in Phase 1)
 
-The Swift side currently has no tests at all.
-
-- **Bridge contract tests, in Python**, living in the engine repo: given a
-  settings payload, assert the emitted `PROGRESS` / `RESULT` / `PREFLIGHT` lines.
-  This is the interface most likely to break silently, and it is cheap to test.
-- **Swift unit tests** for JSON decoding of every event, path resolution in
-  `AppRuntime`, and settings round-tripping.
-- **One end-to-end smoke test** in CI: build, run a bundled sample sheet
-  headlessly, assert the icon count and that metadata reports the expected
-  `app_version`.
-- **Engine-version guard test** (Phase 1a) so a stale bundle fails loudly.
+- [x] **Swift unit tests** for JSON decoding of every event, settings
+  round-tripping and migration, and line framing across pipe chunk boundaries.
+- [x] **Process tests** against a real child process: a flooded stderr, a
+  result written without a trailing newline, and cancellation.
+- [x] **One end-to-end smoke test** in CI (`.github/workflows/ci.yml`): check
+  out the engine ref `build_app.sh` ships, extract the sample sheet, and assert
+  the reported icons match the files on disk.
+- [x] **Engine-version guard**: the app refuses an engine below
+  `AppRuntime.minimumEngineVersion`, `build_app.sh` refuses to package one, and
+  a test reads the threshold out of the script rather than restating it.
+- [ ] **Bridge contract tests, in Python**, living in the engine repo: given a
+  settings payload, assert the emitted `PROGRESS` / `RESULT` / `PREFLIGHT`
+  lines. Still the cheapest place to catch protocol drift at its source.
 
 ---
 
