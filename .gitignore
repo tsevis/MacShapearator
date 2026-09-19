@@ -10,7 +10,8 @@ DerivedData/
 .netrc
 
 # --- Build outputs ---
-# The packaged disk image is ~1.7 GB; publish it as a release asset instead.
+# The packaged disk image is ~310 MB (measured, 0.4.7); publish it as a
+# release asset rather than committing it.
 *.dmg
 *.app
 
