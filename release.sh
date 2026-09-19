@@ -14,13 +14,17 @@
 #   SIGN_IDENTITY     "Developer ID Application: Name (TEAMID)"
 #                     Default: the first Developer ID Application identity found.
 #   NOTARY_PROFILE    notarytool keychain profile name. Default: MacShapearator
-#   APP_PATH          .app to package. Default: the Debug build product.
+#   BUILD_CONFIG      Build configuration to package. Default: Release
+#   APP_PATH          .app to package. Default: the $BUILD_CONFIG build product.
 #   SKIP_NOTARIZE=1   Sign and package without submitting to Apple.
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_PATH="${APP_PATH:-$(pwd)/build/Build/Products/Debug/MacShapearator.app}"
+# build_app.sh builds Release by default; a Debug product is a preview shim
+# plus __preview.dylib, which notarization rejects. Keep the two in step.
+BUILD_CONFIG="${BUILD_CONFIG:-Release}"
+APP_PATH="${APP_PATH:-$(pwd)/build/Build/Products/$BUILD_CONFIG/MacShapearator.app}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-MacShapearator}"
 DIST_DIR="${DIST_DIR:-$(pwd)/dist}"
 ENTITLEMENTS="$(pwd)/Resources/MacShapearator.entitlements"
@@ -95,7 +99,10 @@ print "Signature verified."
 
 # --- Package ---------------------------------------------------------------
 mkdir -p "$DIST_DIR"
-VERSION="$(cat "$APP_PATH/Contents/Resources/BundledBackend/ENGINE_VERSION" 2>/dev/null || echo dev)"
+# The stamp is written as a git ref ("v0.4.2"); carry the tag spelling and a
+# bare number separately so neither the filename nor the tag grows a second v.
+ENGINE_REF="$(cat "$APP_PATH/Contents/Resources/BundledBackend/ENGINE_VERSION" 2>/dev/null || echo dev)"
+VERSION="${ENGINE_REF#v}"
 DMG_PATH="$DIST_DIR/MacShapearator-${VERSION}.dmg"
 rm -f "$DMG_PATH"
 
@@ -129,4 +136,4 @@ xcrun stapler staple "$DMG_PATH" || die "Could not staple the notarization ticke
 print "Notarized and stapled: $DMG_PATH"
 print ""
 print "Publish it as a release asset rather than committing it:"
-print "  gh release create v$VERSION \"$DMG_PATH\" --repo tsevis/MacShapearator"
+print "  gh release create \"$ENGINE_REF\" \"$DMG_PATH\" --repo tsevis/MacShapearator"

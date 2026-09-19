@@ -21,6 +21,10 @@ MINIMUM_ENGINE="v0.4.1"
 # still supported rather than the current one.
 DEFAULT_ENGINE="v0.4.2"
 
+# Stands in for the build machine's interpreter prefix inside the bundle's
+# own metadata; nothing resolves it at runtime.
+BUNDLE_PATH_PLACEHOLDER="/opt/macshapearator/python"
+
 SHAPEARATOR_SRC="${SHAPEARATOR_SRC:-../shapearator}"
 SHAPEARATOR_REF="${SHAPEARATOR_REF:-$DEFAULT_ENGINE}"
 INKSCAPE_APP="${INKSCAPE_APP:-/Applications/Inkscape.app}"
@@ -81,6 +85,29 @@ git -C "$SHAPEARATOR_SRC" archive "$SHAPEARATOR_REF" services requirements.txt \
   | tar -x -C Resources/BundledBackend
 print "$SHAPEARATOR_REF" > Resources/BundledBackend/ENGINE_VERSION
 
+# The app refuses to run an engine older than MINIMUM_ENGINE. Finding that out
+# at launch, after a 758 MB build, is finding out too late.
+shipped_engine_version() {
+  local stamp="Resources/BundledBackend/ENGINE_VERSION"
+  local text="$(<"$stamp")"
+  if [[ "$text" == (v|)<->.<->* ]]; then
+    print -- "${text#v}"
+    return
+  fi
+  # A branch or sha was pinned; fall back to the engine's own constant, the
+  # same way AppRuntime.engineVersion does.
+  sed -nE 's/^APP_VERSION[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' \
+    Resources/BundledBackend/services/extractor.py | head -1
+}
+ENGINE_VERSION="$(shipped_engine_version)"
+[[ -n "$ENGINE_VERSION" ]] \
+  || die "Could not determine the version of the engine at $SHAPEARATOR_REF."
+if [[ "$(printf '%s\n%s\n' "$ENGINE_VERSION" "${MINIMUM_ENGINE#v}" | sort -V | head -1)" \
+      != "${MINIMUM_ENGINE#v}" ]]; then
+  die "Engine $ENGINE_VERSION is older than the minimum this app supports ($MINIMUM_ENGINE)."
+fi
+print "Engine version: $ENGINE_VERSION (minimum $MINIMUM_ENGINE)"
+
 # --- Bridge scripts --------------------------------------------------------
 # Single source of truth is Scripts/; Resources/ is a packaging copy.
 mkdir -p Resources/Scripts
@@ -125,6 +152,45 @@ PYTHONHOME="$(pwd)/Resources/BundledPython/python" PYTHONNOUSERSITE=1 \
   "Resources/BundledPython/python/bin/python3" \
   -c 'import cv2, numpy, PIL, requests, huggingface_hub' \
   || die "The bundled interpreter cannot import the engine's dependencies."
+# The interpreter's bin/ carries the console scripts of every package the
+# source interpreter had -- accelerate, argos-translate and 180 more. Their
+# packages are gone (site-packages is excluded above), and each script's
+# shebang is an absolute path on this build machine, so they are dead files
+# that ship, and get signed and notarized, naming someone's home directory.
+print "Pruning console scripts that point outside the bundle"
+pruned=0
+for script in \
+  Resources/BundledPython/python/bin/*(N) \
+  "Resources/BundledPython/python/lib/$PY_LIB/site-packages/bin"/*(N)
+do
+  [[ -f "$script" ]] || continue
+  read -r shebang < "$script" 2>/dev/null || continue
+  [[ "$shebang" == '#!'* ]] || continue
+  [[ "$shebang" == *"/Resources/BundledPython/"* ]] && continue
+  rm -f "$script"
+  pruned=$(( pruned + 1 ))
+done
+print "Pruned $pruned console scripts"
+
+# What is left naming this machine is the interpreter's own build metadata:
+# sysconfigdata, the config Makefile, python-config. The runtime imports
+# sysconfigdata, so these are rewritten rather than deleted -- the recorded
+# paths only matter for compiling C extensions, which the app never does.
+print "Scrubbing build-machine paths from interpreter metadata"
+grep -rlI "$HOME" Resources/BundledPython 2>/dev/null | while IFS= read -r file; do
+  LC_ALL=C sed -i '' \
+    -e "s|$PYTHON_SRC|$BUNDLE_PATH_PLACEHOLDER|g" \
+    -e "s|$HOME|$BUNDLE_PATH_PLACEHOLDER|g" "$file"
+done
+
+# Nothing in the bundle may name a path on this machine (definition of done #5).
+if leaks=$(grep -rlI "$HOME" Resources/BundledPython Resources/BundledBin \
+             Resources/Scripts Resources/BundledBackend 2>/dev/null); then
+  print -u2 "error: bundled files name this machine's home directory:"
+  print -u2 "$leaks"
+  exit 1
+fi
+
 print "Bundled interpreter: $(du -sh Resources/BundledPython | cut -f1)"
 
 if [[ -d "$INKSCAPE_APP" ]]; then
