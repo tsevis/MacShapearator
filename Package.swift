@@ -12,12 +12,14 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "MacShapearator",
-            path: "Sources/MacShapearator"
+            path: "Sources/MacShapearator",
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
         .testTarget(
             name: "MacShapearatorTests",
             dependencies: ["MacShapearator"],
-            path: "Tests/MacShapearatorTests"
+            path: "Tests/MacShapearatorTests",
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         )
     ]
 )

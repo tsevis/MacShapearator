@@ -76,19 +76,18 @@ final class ModelRuntimeViewModel: ObservableObject {
             var installed: InstalledRecord?
             var failure: String?
             do {
-                try await BridgeRunner.run(
+                let session = try BridgeRunner.start(
                     settings: settings,
                     scriptName: AppRuntime.engineBridgeScriptName,
-                    arguments: ["install", "--key", candidate.key, "--backend", candidate.backend]
-                ) { event in
+                    arguments: ["install", "--key", candidate.key, "--backend", candidate.backend])
+                // Drained here on the main actor, so progress cannot arrive
+                // out of order and these locals need no synchronisation.
+                for await event in session.events {
                     switch event.tag {
                     case "PROGRESS":
                         if let progress = event.decode(InstallProgressRecord.self) {
-                            // Awaited, so progress cannot arrive out of order.
-                            await MainActor.run {
-                                self.installProgress = progress.fraction
-                                self.statusMessage = progress.message
-                            }
+                            installProgress = progress.fraction
+                            statusMessage = progress.message
                         }
                     case "INSTALLED":
                         installed = event.decode(InstalledRecord.self)
@@ -97,6 +96,12 @@ final class ModelRuntimeViewModel: ObservableObject {
                     default:
                         break
                     }
+                }
+                let outcome = await session.waitForExit()
+                if installed == nil, failure == nil, !outcome.succeeded {
+                    failure = outcome.standardError.isEmpty
+                        ? "The download exited with status \(outcome.terminationStatus)."
+                        : String(outcome.standardError.suffix(2000))
                 }
             } catch {
                 failure = error.localizedDescription
@@ -149,7 +154,7 @@ final class ModelRuntimeViewModel: ObservableObject {
 
     // MARK: - Internals
 
-    private func query<T: Decodable>(
+    private func query<T: Decodable & Sendable>(
         _ type: T.Type, tag: String, command: String, settings: ExtractionSettings
     ) async -> T? {
         do {

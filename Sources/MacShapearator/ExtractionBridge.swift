@@ -83,22 +83,8 @@ final class ExtractionViewModel: ObservableObject {
     ) async {
         defer { isRunning = false }
 
-        let context: BridgeRunner.Context
-        do {
-            // Resolving the engine, the interpreter and the engine version is
-            // the same work every bridge call does; it lives in one place so
-            // the two call sites cannot drift apart.
-            context = try BridgeRunner.prepare(settings: settings, scriptName: AppRuntime.bridgeScriptName)
-        } catch {
-            state = .failed(error.localizedDescription)
-            return
-        }
-        defer { try? FileManager.default.removeItem(at: context.settingsFile) }
-
         let previewDir = makePreviewDirectory()
         let arguments = [
-            context.script.path,
-            "--settings", context.settingsFile.path,
             "--input", input,
             "--output", output,
             "--preview-dir", previewDir.path,
@@ -113,11 +99,13 @@ final class ExtractionViewModel: ObservableObject {
 
         let running: BridgeSession
         do {
-            running = try BridgeSession(
-                executable: context.python,
-                arguments: arguments,
-                currentDirectory: context.backend,
-                environment: context.environment)
+            // Resolving the engine, the interpreter and the engine version is
+            // the same work every bridge call does; it lives in one place so
+            // the two call sites cannot drift apart.
+            running = try BridgeRunner.start(
+                settings: settings,
+                scriptName: AppRuntime.bridgeScriptName,
+                arguments: arguments)
         } catch {
             state = .failed(error.localizedDescription)
             return

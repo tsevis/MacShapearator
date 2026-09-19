@@ -10,6 +10,10 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     SWIFT_VERSION: "5.9"
+    # The packaged app is built by xcodebuild, not SwiftPM, so the checking
+    # Package.swift turns on has to be turned on here too or it only ever
+    # runs in `swift build`.
+    SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGNING_ALLOWED: NO
     CODE_SIGNING_REQUIRED: NO
     GENERATE_INFOPLIST_FILE: YES

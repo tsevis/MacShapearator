@@ -1,7 +1,7 @@
 import Foundation
 
 /// One tagged line from a bridge script: `TAG\t{json}`.
-struct BridgeEvent {
+struct BridgeEvent: Sendable {
     let tag: String
     let data: Data
 
@@ -77,48 +77,42 @@ enum BridgeRunner {
             environment: environment(backend: backend, python: python))
     }
 
-    /// Run a bridge script to completion, delivering each event as it arrives.
+    /// Start a bridge process, already wired to the engine and interpreter.
     ///
-    /// Long-running commands (a model download) report through `onEvent`, so
-    /// the caller sees progress rather than a frozen window.
-    @discardableResult
-    static func run(
+    /// The caller drains `events` on its own actor. The temporary settings
+    /// file goes away with the process, so nobody has to outlive the run.
+    static func start(
         settings: ExtractionSettings,
         scriptName: String,
-        arguments: [String],
-        onEvent: (BridgeEvent) async -> Void
-    ) async throws -> BridgeOutcome {
+        arguments: [String]
+    ) throws -> BridgeSession {
         let context = try prepare(settings: settings, scriptName: scriptName)
-        defer { try? FileManager.default.removeItem(at: context.settingsFile) }
-
-        let session = try BridgeSession(
+        return try BridgeSession(
             executable: context.python,
             arguments: [context.script.path, "--settings", context.settingsFile.path] + arguments,
             currentDirectory: context.backend,
-            environment: context.environment)
-        for await event in session.events {
-            await onEvent(event)
-        }
-        return await session.waitForExit()
+            environment: context.environment,
+            removingOnExit: context.settingsFile)
     }
 
     /// Run a script and return the first event carrying `tag`.
-    static func first<T: Decodable>(
+    static func first<T: Decodable & Sendable>(
         _ type: T.Type,
         tag: String,
         settings: ExtractionSettings,
         scriptName: String,
         arguments: [String]
     ) async throws -> T {
+        let session = try start(settings: settings, scriptName: scriptName, arguments: arguments)
         var collected: [BridgeEvent] = []
-        let outcome = try await run(settings: settings, scriptName: scriptName, arguments: arguments) {
-            collected.append($0)
+        for await event in session.events {
+            collected.append(event)
         }
-        return try firstEvent(type, tag: tag, in: collected, outcome: outcome)
+        return try firstEvent(type, tag: tag, in: collected, outcome: await session.waitForExit())
     }
 
     /// Pick the answer out of a finished run, or explain why there is none.
-    static func firstEvent<T: Decodable>(
+    static func firstEvent<T: Decodable & Sendable>(
         _ type: T.Type,
         tag: String,
         in events: [BridgeEvent],

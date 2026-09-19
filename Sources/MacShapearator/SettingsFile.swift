@@ -16,9 +16,24 @@ final class SettingsFile: @unchecked Sendable {
     private let lock = NSLock()
     private var pending: ExtractionSettings?
     private var scheduled: DispatchWorkItem?
+    private var observer: NSObjectProtocol?
 
     init(url: URL) {
         self.url = url
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    /// Flush whenever `notification` arrives — the app is about to quit, and
+    /// a coalescing window that swallows the last edit is worse than the
+    /// churn it saves. Takes the name rather than importing AppKit, so
+    /// persistence stays independent of the UI framework.
+    func flush(on notification: Notification.Name) {
+        observer = NotificationCenter.default.addObserver(
+            forName: notification, object: nil, queue: nil
+        ) { [weak self] _ in self?.flush() }
     }
 
     func load() -> ExtractionSettings? {

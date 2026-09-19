@@ -8,23 +8,13 @@ final class SettingsStore: ObservableObject {
     }
 
     private let file: SettingsFile
-    private var terminationObserver: NSObjectProtocol?
 
     init() {
         let store = SettingsFile(
             url: AppRuntime.applicationSupportDirectory().appendingPathComponent("settings.json"))
         file = store
         settings = Self.normalize(store.load() ?? ExtractionSettings())
-        // A pending write must not be lost because the user quit first.
-        terminationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification, object: nil, queue: nil
-        ) { _ in store.flush() }
-    }
-
-    deinit {
-        if let terminationObserver {
-            NotificationCenter.default.removeObserver(terminationObserver)
-        }
+        store.flush(on: NSApplication.willTerminateNotification)
     }
 
     /// Write immediately rather than waiting for the coalescing window.
