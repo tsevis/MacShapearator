@@ -6,7 +6,7 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: com.tsevis.MacShapearator
     # Tracks the Shapearator engine release this app is built against, so the
     # version shown in Finder and About matches the engine doing the work.
-    MARKETING_VERSION: "0.4.2"
+    MARKETING_VERSION: "0.4.7"
     CURRENT_PROJECT_VERSION: "1"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     SWIFT_VERSION: "5.9"
