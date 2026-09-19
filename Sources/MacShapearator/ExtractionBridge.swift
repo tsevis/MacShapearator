@@ -9,13 +9,19 @@ final class ExtractionViewModel: ObservableObject {
     @Published var result: ExtractionResultRecord?
     @Published var selectedIcon: ExtractedIconRecord?
 
+    /// Non-fatal notes from the engine: worth showing, never worth blocking on.
+    @Published var warnings: [String] = []
+
     /// Set when the backend reported not-ready; drives the "export anyway?" prompt.
     @Published var preflight: PreflightRecord?
     /// A recoverable failure awaiting the user's answer.
     @Published var pendingUnnamedPrompt: BridgeErrorRecord?
 
-    private var process: Process?
-    private var decoder = JSONDecoder()
+    /// Set the moment a run is requested, not when the process appears, so a
+    /// second click cannot slip past the guard while the first is starting.
+    @Published private(set) var isRunning = false
+
+    private var session: BridgeSession?
     private var previewDirectory: URL?
     private var lastRun: (store: SettingsStore, formats: Set<String>)?
 
@@ -32,9 +38,24 @@ final class ExtractionViewModel: ObservableObject {
         progressMessage = "Idle"
     }
 
+    /// Stop the running extraction.
+    ///
+    /// Measured: the engine stages everything and commits at the end, so a run
+    /// stopped mid-export publishes nothing and leaves files the user put in
+    /// the output folder untouched. It does leave a `.shapearator-staging`
+    /// directory behind, which the next run clears.
+    func cancel() {
+        guard let session else { return }
+        progressMessage = "Stopping…"
+        session.cancel()
+    }
+
     func runExtraction(settingsStore: SettingsStore, formats: Set<String>, allowUnnamed: Bool = false) {
+        // Two extractions writing the same output folder would fight over it.
+        guard !isRunning else { return }
         lastRun = (settingsStore, formats)
-        var settings = settingsStore.settings
+
+        let settings = settingsStore.settings
         let input = settings.lastInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
         let output = settings.lastOutputDir.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty, !output.isEmpty else {
@@ -45,140 +66,142 @@ final class ExtractionViewModel: ObservableObject {
             state = .failed("Input sheet was not found.")
             return
         }
-        guard let backendRoot = AppRuntime.resolveBackendRoot(from: settings.backendRoot) else {
-            state = .failed("The bundled or configured extractor backend could not be found.")
-            return
-        }
-        guard let scriptURL = AppRuntime.resolveBridgeScript() else {
-            state = .failed("The bundled bridge script could not be found.")
-            return
-        }
-        guard let pythonExecutable = AppRuntime.resolvePythonExecutable(from: settings.pythonPath) else {
-            state = .failed("No usable Python runtime was found. Rebuild the app bundle or choose a valid Python path.")
-            return
-        }
-        // Refuse to run against an engine older than this app understands, rather
-        // than silently producing results from known-buggy code.
-        if let problem = AppRuntime.engineCompatibilityProblem(at: backendRoot) {
-            state = .failed(problem)
-            return
-        }
-        settings.backendRoot = backendRoot.path
-        settings.pythonPath = pythonExecutable.path
 
-        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("MacShapearator", isDirectory: true)
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        isRunning = true
+        Task { await start(settings: settings, input: input, output: output,
+                           formats: formats, allowUnnamed: allowUnnamed) }
+    }
 
-        // UI thumbnails are scratch data. They used to be written into the user's
-        // export folder, where nothing ever cleaned them up.
-        let previewDir = tempDir.appendingPathComponent("previews-\(UUID().uuidString)", isDirectory: true)
-        previewDirectory = previewDir
+    // MARK: - Running
+
+    private func start(
+        settings: ExtractionSettings,
+        input: String,
+        output: String,
+        formats: Set<String>,
+        allowUnnamed: Bool
+    ) async {
+        defer { isRunning = false }
+
+        let context: BridgeRunner.Context
         do {
-            let data = try JSONEncoder().encode(settings)
-            try data.write(to: settingsURL, options: .atomic)
+            // Resolving the engine, the interpreter and the engine version is
+            // the same work every bridge call does; it lives in one place so
+            // the two call sites cannot drift apart.
+            context = try BridgeRunner.prepare(settings: settings, scriptName: AppRuntime.bridgeScriptName)
         } catch {
-            state = .failed("Could not write temporary settings: \(error.localizedDescription)")
+            state = .failed(error.localizedDescription)
             return
         }
+        defer { try? FileManager.default.removeItem(at: context.settingsFile) }
 
-        let task = Process()
-        task.executableURL = pythonExecutable
-        task.currentDirectoryURL = backendRoot
-        task.arguments = [
-            scriptURL.path,
-            "--settings", settingsURL.path,
+        let previewDir = makePreviewDirectory()
+        let arguments = [
+            context.script.path,
+            "--settings", context.settingsFile.path,
             "--input", input,
             "--output", output,
             "--preview-dir", previewDir.path,
         ] + (allowUnnamed ? ["--allow-unnamed"] : []) + ["--formats"] + formats.sorted()
-        task.environment = BridgeRunner.environment(backend: backendRoot, python: pythonExecutable)
 
-        let stdout = Pipe()
-        let stderr = Pipe()
-        task.standardOutput = stdout
-        task.standardError = stderr
+        progress = 0
+        progressMessage = "Preparing extraction..."
+        result = nil
+        selectedIcon = nil
+        warnings = []
+        state = .running
 
-        var buffer = ""
-        stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let chunk = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in
-                self?.consumeOutput(chunk: chunk, buffer: &buffer)
-            }
-        }
-
-        task.terminationHandler = { [weak self] process in
-            stdout.fileHandleForReading.readabilityHandler = nil
-            let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-            let errText = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            Task { @MainActor in
-                guard let self else { return }
-                self.process = nil
-                guard process.terminationStatus != 0 else { return }
-                // A structured ERROR line has already set a precise state; only
-                // fall back to stderr when the bridge died without reporting.
-                if case .failed = self.state { return }
-                if self.pendingUnnamedPrompt != nil { return }
-                self.state = .failed(errText.isEmpty ? "Extraction failed." : errText)
-            }
-        }
-
+        let running: BridgeSession
         do {
-            progress = 0
-            progressMessage = "Preparing extraction..."
-            result = nil
-            selectedIcon = nil
-            state = .running
-            process = task
-            try task.run()
+            running = try BridgeSession(
+                executable: context.python,
+                arguments: arguments,
+                currentDirectory: context.backend,
+                environment: context.environment)
         } catch {
-            state = .failed("Could not start extractor: \(error.localizedDescription)")
+            state = .failed(error.localizedDescription)
+            return
+        }
+        session = running
+        defer { session = nil }
+
+        // Events arrive in order, already on this actor: no interleaving with
+        // the exit handling below, which is what used to lose the last line.
+        for await event in running.events {
+            handle(event)
+        }
+        let outcome = await running.waitForExit()
+        finish(outcome)
+    }
+
+    private func handle(_ event: BridgeEvent) {
+        switch event.tag {
+        case "PROGRESS":
+            if let progressEvent = event.decode(ProgressEvent.self) {
+                progress = progressEvent.fraction
+                progressMessage = progressEvent.message
+            }
+        case "PREFLIGHT":
+            preflight = event.decode(PreflightRecord.self)
+        case "RESULT":
+            if let extraction = event.decode(ExtractionResultRecord.self) {
+                result = extraction
+                selectedIcon = extraction.icons.first
+                warnings = extraction.warnings ?? []
+                progress = 1
+                progressMessage = completionMessage(for: extraction)
+                state = .success(extraction.providerSummary)
+            }
+        case "ERROR":
+            if let failure = event.decode(BridgeErrorRecord.self) {
+                if failure.recoverable == true {
+                    // The model is unreachable. Let the user decide whether to
+                    // export with generic filenames instead of just failing.
+                    pendingUnnamedPrompt = failure
+                    progressMessage = "Waiting for your choice..."
+                } else {
+                    state = .failed(failure.message)
+                    progressMessage = "Extraction failed."
+                }
+            }
+        default:
+            break
         }
     }
 
-    private func consumeOutput(chunk: String, buffer: inout String) {
-        buffer += chunk
-        while let range = buffer.range(of: "\n") {
-            let line = String(buffer[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-            buffer.removeSubrange(buffer.startIndex...range.lowerBound)
-            guard !line.isEmpty else { continue }
-            guard let tab = line.firstIndex(of: "\t") else { continue }
-            let tag = String(line[..<tab])
-            guard let data = String(line[line.index(after: tab)...]).data(using: .utf8) else { continue }
-
-            switch tag {
-            case "PROGRESS":
-                if let event = try? decoder.decode(ProgressEvent.self, from: data) {
-                    progress = event.fraction
-                    progressMessage = event.message
-                }
-            case "PREFLIGHT":
-                preflight = try? decoder.decode(PreflightRecord.self, from: data)
-            case "RESULT":
-                if let extraction = try? decoder.decode(ExtractionResultRecord.self, from: data) {
-                    result = extraction
-                    selectedIcon = extraction.icons.first
-                    progress = 1
-                    progressMessage = completionMessage(for: extraction)
-                    state = .success(extraction.providerSummary)
-                }
-            case "ERROR":
-                if let failure = try? decoder.decode(BridgeErrorRecord.self, from: data) {
-                    if failure.recoverable == true {
-                        // The model is unreachable. Let the user decide whether to
-                        // export with generic filenames instead of just failing.
-                        pendingUnnamedPrompt = failure
-                        progressMessage = "Waiting for your choice..."
-                    } else {
-                        state = .failed(failure.message)
-                        progressMessage = "Extraction failed."
-                    }
-                }
-            default:
-                continue
-            }
+    private func finish(_ outcome: BridgeOutcome) {
+        guard !outcome.succeeded else { return }
+        // A structured ERROR line has already set a precise state, and a
+        // recoverable one is waiting on the user; only fall back to stderr
+        // when the bridge died without reporting anything.
+        if case .failed = state { return }
+        if pendingUnnamedPrompt != nil { return }
+        if outcome.terminationStatus == SIGTERM {
+            state = .idle
+            progress = 0
+            progressMessage = "Extraction cancelled."
+            return
         }
+        let detail = outcome.standardError.isEmpty
+            ? "Extraction failed with status \(outcome.terminationStatus)."
+            : String(outcome.standardError.suffix(2000))
+        state = .failed(detail)
+        progressMessage = "Extraction failed."
+    }
+
+    /// Thumbnails are scratch data. They used to be written into the user's
+    /// export folder, where nothing ever cleaned them up; now each run gets a
+    /// temporary directory and takes the previous one with it.
+    private func makePreviewDirectory() -> URL {
+        if let previous = previewDirectory {
+            try? FileManager.default.removeItem(at: previous)
+        }
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("MacShapearator", isDirectory: true)
+            .appendingPathComponent("previews-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        previewDirectory = directory
+        return directory
     }
 
     /// Report what actually happened, not just the icon count: naming outcome
@@ -195,7 +218,6 @@ final class ExtractionViewModel: ObservableObject {
         }
         return parts.joined(separator: " · ")
     }
-
 }
 
 extension ExtractedIconRecord {

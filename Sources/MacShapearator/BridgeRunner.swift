@@ -30,11 +30,19 @@ enum BridgeFailure: Error, LocalizedError {
 /// Both bridges — extraction and engine services — speak the same protocol, so
 /// process setup, environment, and line framing live here once.
 enum BridgeRunner {
+    /// Everything a bridge process needs to start.
+    struct Context {
+        let script: URL
+        let python: URL
+        let backend: URL
+        /// Temporary; the caller deletes it when the process has finished.
+        let settingsFile: URL
+        let environment: [String: String]
+    }
+
     /// Resolve the engine and interpreter, and write the settings payload the
     /// scripts read. Throws with a user-facing message when anything is missing.
-    static func prepare(settings: ExtractionSettings, scriptName: String) throws -> (
-        script: URL, python: URL, backend: URL, settingsFile: URL, environment: [String: String]
-    ) {
+    static func prepare(settings: ExtractionSettings, scriptName: String) throws -> Context {
         guard let backend = AppRuntime.resolveBackendRoot(from: settings.backendRoot) else {
             throw BridgeFailure.engineUnavailable(
                 "The bundled or configured extractor backend could not be found.")
@@ -64,55 +72,34 @@ enum BridgeRunner {
             throw BridgeFailure.launchFailed("Could not write temporary settings: \(error.localizedDescription)")
         }
 
-        return (script, python, backend, settingsFile, environment(backend: backend, python: python))
+        return Context(
+            script: script, python: python, backend: backend, settingsFile: settingsFile,
+            environment: environment(backend: backend, python: python))
     }
 
     /// Run a bridge script to completion, delivering each event as it arrives.
     ///
-    /// Long-running commands (a model download) report through `onEvent`, so the
-    /// caller sees progress rather than a frozen window.
+    /// Long-running commands (a model download) report through `onEvent`, so
+    /// the caller sees progress rather than a frozen window.
+    @discardableResult
     static func run(
         settings: ExtractionSettings,
         scriptName: String,
         arguments: [String],
-        onEvent: @escaping (BridgeEvent) -> Void
-    ) async throws {
+        onEvent: (BridgeEvent) async -> Void
+    ) async throws -> BridgeOutcome {
         let context = try prepare(settings: settings, scriptName: scriptName)
         defer { try? FileManager.default.removeItem(at: context.settingsFile) }
 
-        let task = Process()
-        task.executableURL = context.python
-        task.currentDirectoryURL = context.backend
-        task.arguments = [context.script.path, "--settings", context.settingsFile.path] + arguments
-        task.environment = context.environment
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        task.standardOutput = stdout
-        task.standardError = stderr
-
-        do {
-            try task.run()
-        } catch {
-            throw BridgeFailure.launchFailed("Could not start the engine: \(error.localizedDescription)")
+        let session = try BridgeSession(
+            executable: context.python,
+            arguments: [context.script.path, "--settings", context.settingsFile.path] + arguments,
+            currentDirectory: context.backend,
+            environment: context.environment)
+        for await event in session.events {
+            await onEvent(event)
         }
-
-        var buffer = Data()
-        let handle = stdout.fileHandleForReading
-        while true {
-            let chunk = handle.availableData
-            if chunk.isEmpty { break }
-            buffer.append(chunk)
-            while let newline = buffer.firstIndex(of: UInt8(ascii: "\n")) {
-                let line = buffer[buffer.startIndex..<newline]
-                buffer.removeSubrange(buffer.startIndex...newline)
-                if let event = parse(line: Data(line)) { onEvent(event) }
-            }
-        }
-        if let event = parse(line: buffer) { onEvent(event) }
-
-        task.waitUntilExit()
-        _ = stderr.fileHandleForReading.readDataToEndOfFile()
+        return await session.waitForExit()
     }
 
     /// Run a script and return the first event carrying `tag`.
@@ -123,25 +110,36 @@ enum BridgeRunner {
         scriptName: String,
         arguments: [String]
     ) async throws -> T {
-        var decoded: T?
-        var reported: BridgeErrorRecord?
-        try await run(settings: settings, scriptName: scriptName, arguments: arguments) { event in
-            if event.tag == tag, decoded == nil {
-                decoded = event.decode(type)
-            } else if event.tag == "ERROR", reported == nil {
-                reported = event.decode(BridgeErrorRecord.self)
-            }
+        var collected: [BridgeEvent] = []
+        let outcome = try await run(settings: settings, scriptName: scriptName, arguments: arguments) {
+            collected.append($0)
         }
-        if let decoded { return decoded }
-        if let reported { throw BridgeFailure.reported(reported) }
-        throw BridgeFailure.launchFailed("The engine returned no \(tag) response.")
+        return try firstEvent(type, tag: tag, in: collected, outcome: outcome)
     }
 
-    private static func parse(line: Data) -> BridgeEvent? {
-        guard let tab = line.firstIndex(of: UInt8(ascii: "\t")) else { return nil }
-        let tag = String(decoding: line[line.startIndex..<tab], as: UTF8.self)
-        guard !tag.isEmpty else { return nil }
-        return BridgeEvent(tag: tag, data: Data(line[line.index(after: tab)...]))
+    /// Pick the answer out of a finished run, or explain why there is none.
+    static func firstEvent<T: Decodable>(
+        _ type: T.Type,
+        tag: String,
+        in events: [BridgeEvent],
+        outcome: BridgeOutcome
+    ) throws -> T {
+        if let decoded = events.first(where: { $0.tag == tag })?.decode(type) {
+            return decoded
+        }
+        // The engine's own words outrank the exit code: an ERROR line is
+        // written for the user, stderr is written for whoever built the app.
+        if let reported = events.first(where: { $0.tag == "ERROR" })?.decode(BridgeErrorRecord.self) {
+            throw BridgeFailure.reported(reported)
+        }
+        var message = "The engine returned no \(tag) response."
+        if !outcome.succeeded {
+            message += " It exited with status \(outcome.terminationStatus)."
+        }
+        if !outcome.standardError.isEmpty {
+            message += "\n\n\(outcome.standardError.suffix(2000))"
+        }
+        throw BridgeFailure.launchFailed(message)
     }
 
     static func environment(backend: URL, python: URL) -> [String: String] {
