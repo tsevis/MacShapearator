@@ -66,6 +66,10 @@ final class ExtractionViewModel: ObservableObject {
             state = .failed("Input sheet was not found.")
             return
         }
+        if let problem = ExtractionPreconditions.problem(with: settings) {
+            state = .failed(problem)
+            return
+        }
 
         isRunning = true
         Task { await start(settings: settings, input: input, output: output,

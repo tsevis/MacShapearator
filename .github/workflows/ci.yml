@@ -47,7 +47,12 @@ jobs:
       # potrace turns the raster crops into SVG; Inkscape is only needed for
       # SVG *input*, which this smoke run does not use.
       - run: brew install potrace
-      - run: python -m pip install --quiet -r engine/requirements.txt
+      - run: python -m pip install --quiet pytest -r engine/requirements.txt
+
+      # Asserts every field Models.swift decodes is still emitted. The Swift
+      # fixture tests pin a capture; only this notices the live engine moving.
+      - name: Check the bridge protocol against the live engine
+        run: python -m pytest -q
 
       - name: Extract a real sheet and check the result
         run: |
