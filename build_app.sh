@@ -19,7 +19,7 @@ MINIMUM_ENGINE="v0.4.1"
 # The engine actually shipped: the newest release tested against this app.
 # Deliberately not the minimum, or every build would ship the oldest engine
 # still supported rather than the current one.
-DEFAULT_ENGINE="v0.4.7"
+DEFAULT_ENGINE="v0.4.8"
 
 # Stands in for the build machine's interpreter prefix inside the bundle's
 # own metadata; nothing resolves it at runtime.
