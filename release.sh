@@ -103,7 +103,11 @@ mkdir -p "$DIST_DIR"
 # bare number separately so neither the filename nor the tag grows a second v.
 ENGINE_REF="$(cat "$APP_PATH/Contents/Resources/BundledBackend/ENGINE_VERSION" 2>/dev/null || echo dev)"
 VERSION="${ENGINE_REF#v}"
-DMG_PATH="$DIST_DIR/MacShapearator-${VERSION}.dmg"
+# The ref is a git ref, and a branch name contains slashes. Unsanitised it
+# turned the disk image into dist/MacShapearator-fix/label-.../....dmg and
+# hdiutil failed on a directory that was never created.
+SAFE_VERSION="${VERSION//\//-}"
+DMG_PATH="$DIST_DIR/MacShapearator-${SAFE_VERSION}.dmg"
 rm -f "$DMG_PATH"
 
 STAGING="$(mktemp -d)"

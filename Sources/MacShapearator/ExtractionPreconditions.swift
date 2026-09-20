@@ -2,18 +2,28 @@ import Foundation
 
 /// What must be true before an extraction is worth starting.
 enum ExtractionPreconditions {
-    /// Providers that cannot name anything without being told which model.
-    private static let modelKeyPaths: [String: KeyPath<ExtractionSettings, String>] = [
-        "ollama": \.ollamaModel,
-        "llamacpp": \.llamacppModel,
-        "directory": \.localModelName,
-    ]
+    /// The model a provider needs, and nil for one that needs none.
+    ///
+    /// A function rather than a stored table: a static dictionary of key paths
+    /// is shared mutable state as far as the concurrency checker is concerned,
+    /// and this needs no state at all.
+    private static func selectedModel(in settings: ExtractionSettings) -> String? {
+        switch settings.provider {
+        case "ollama": return settings.ollamaModel
+        case "llamacpp": return settings.llamacppModel
+        case "directory": return settings.localModelName
+        default: return nil
+        }
+    }
 
-    private static let backendNames = [
-        "ollama": "Ollama",
-        "llamacpp": "llama.cpp",
-        "directory": "model directory",
-    ]
+    private static func backendName(for provider: String) -> String {
+        switch provider {
+        case "ollama": return "Ollama"
+        case "llamacpp": return "llama.cpp"
+        case "directory": return "model directory"
+        default: return provider
+        }
+    }
 
     /// `nil` when the run can go ahead, otherwise what the user has to fix.
     ///
@@ -23,12 +33,11 @@ enum ExtractionPreconditions {
     /// app, so the app owes the user the explanation.
     static func problem(with settings: ExtractionSettings) -> String? {
         guard settings.semanticNaming,
-              let keyPath = modelKeyPaths[settings.provider],
-              settings[keyPath: keyPath].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              let model = selectedModel(in: settings),
+              model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return nil }
 
-        let backend = backendNames[settings.provider] ?? settings.provider
-        return "Naming icons is switched on, but no \(backend) model is selected. "
+        return "Naming icons is switched on, but no \(backendName(for: settings.provider)) model is selected. "
             + "Choose one in Settings, or switch naming off to export with generic filenames."
     }
 }
