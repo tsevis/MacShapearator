@@ -19,6 +19,7 @@ Failures are reported as an ERROR line, never a traceback.
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import sys
 from pathlib import Path
@@ -207,10 +208,46 @@ def cmd_start_server(settings, key: str) -> int:
         })
         return 1
 
+    # The catalogue entry is not the file pair. A model this app downloaded
+    # carries `files`; one already in llama.cpp's own cache carries `hf_ref`,
+    # and the manager has a separate entry point for each.
     manager = LlamaCppServerManager()
-    manager.start(chosen, settings.llamacpp_url)
+    try:
+        if chosen.files is not None:
+            manager.start(chosen.files, settings.llamacpp_url)
+        elif chosen.hf_ref:
+            manager.start_hf(chosen.hf_ref, settings.llamacpp_url)
+        else:
+            emit("ERROR", {
+                "kind": "server",
+                "message": f"{chosen.display_name} has no weights on disk and no cache reference.",
+            })
+            return 1
+    except Exception as exc:  # a launch failure is the user's to see, not a traceback
+        emit("ERROR", {
+            "kind": "server",
+            "message": f"Could not start llama-server for {chosen.display_name}: {exc}",
+        })
+        return 1
+
+    if not is_server_healthy(settings.llamacpp_url):
+        emit("ERROR", {
+            "kind": "server",
+            "message": f"llama-server was launched for {chosen.display_name} but is not "
+                       f"answering at {settings.llamacpp_url}.",
+        })
+        return 1
+
+    # The manager registers an atexit hook that stops the server, so the Tk
+    # GUI that owns it for its whole run never orphans one. This app is not
+    # that: every bridge command is its own short-lived process, and the hook
+    # fired microseconds after the server was reported as started -- leaving
+    # "running: true" and nothing listening. A server the user started from
+    # Settings has to outlive the command that started it.
+    atexit.unregister(manager.stop)
+
     emit("SERVER", {
-        "running": is_server_healthy(settings.llamacpp_url),
+        "running": True,
         "model": chosen.display_name,
         "message": f"Started llama-server with {chosen.display_name}.",
     })
