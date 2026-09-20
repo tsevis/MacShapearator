@@ -184,12 +184,21 @@ grep -rlI "$HOME" Resources/BundledPython 2>/dev/null | while IFS= read -r file;
 done
 
 # Nothing in the bundle may name a path on this machine (definition of done #5).
+# grep -I skips binaries, so this only covers text: the Mach-O load commands
+# are checked by relocate_bundle.py above, which is where the real leak was.
 if leaks=$(grep -rlI "$HOME" Resources/BundledPython Resources/BundledBin \
              Resources/Scripts Resources/BundledBackend 2>/dev/null); then
   print -u2 "error: bundled files name this machine's home directory:"
   print -u2 "$leaks"
   exit 1
 fi
+
+# Modules whose libraries we do not ship. Keeping the .so would drag in
+# tcl/tk and gdbm purely to satisfy the relocation pass below; the engine
+# imports none of them, and tkinter's package is already excluded above.
+for orphan in _tkinter _dbm _gdbm; do
+  rm -f "Resources/BundledPython/python/lib/$PY_LIB/lib-dynload/$orphan.cpython-"*"-darwin.so"(N)
+done
 
 print "Bundled interpreter: $(du -sh Resources/BundledPython | cut -f1)"
 
@@ -230,10 +239,19 @@ fi
 cp "$POTRACE_PREFIX/bin/potrace" Resources/BundledBin/potrace
 cp "$POTRACE_PREFIX/lib/libpotrace.0.dylib" Resources/BundledBin/libpotrace.0.dylib
 chmod +x Resources/BundledBin/potrace
-install_name_tool -change \
-  "$POTRACE_PREFIX/lib/libpotrace.0.dylib" \
-  "@executable_path/libpotrace.0.dylib" \
-  Resources/BundledBin/potrace
+# No hand-rolled install_name_tool here any more: it changed
+# "$POTRACE_PREFIX/lib/libpotrace.0.dylib" while the binary actually records
+# the Cellar path it was linked against, so it silently matched nothing.
+# relocate_bundle.py rewrites whatever is really there.
+
+# Copying an interpreter does not move it: its load commands still name the
+# paths it was linked against here. Until this ran, the bundled python3.10
+# pointed at $HOME/.pyenv, _ssl at Homebrew's OpenSSL and potrace at a Cellar
+# path -- so the app worked on this Mac and could not start its engine on any
+# other. Must happen before signing; install_name_tool invalidates signatures.
+print "Relocating bundled binaries into the app"
+"$PYTHON_SRC/bin/python3" Scripts/relocate_bundle.py Resources \
+  || die "Could not make the bundled binaries self-contained."
 
 # --- Build -----------------------------------------------------------------
 # Release by default. A Debug build makes the main executable a thin shim that
