@@ -152,6 +152,11 @@ enum BridgeRunner {
             env["PYTHONHOME"] = pythonRoot
         }
         env["PYTHONNOUSERSITE"] = "1"
+        // The engine is imported from inside the app bundle, and Python caches
+        // bytecode next to the source. Writing __pycache__ there adds files to
+        // a sealed bundle, and codesign then reports the app as invalid -- a
+        // notarized build breaking its own signature on first use.
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["SHAPEARATOR_BUNDLED_BACKEND"] = backend.path
         return env
     }
