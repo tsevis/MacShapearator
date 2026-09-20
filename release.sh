@@ -71,19 +71,19 @@ fi
 # --- Sign ------------------------------------------------------------------
 # Nested code must be signed inside-out. --deep is unreliable for bundles that
 # contain a whole app and an interpreter, so every Mach-O is signed explicitly.
-# Loose Mach-O files first -- our interpreter and tools, which sit in plain
-# directories. Anything inside a nested .app or .framework is deliberately
-# skipped: those are bundles, and signing a file inside one breaks the seal
-# of the bundle around it. That is exactly what the first notarization
-# attempt failed on, with "The signature of the binary is invalid" for
-# Inkscape's executable and its embedded Python framework.
+# Every Mach-O in the bundle, one at a time. Containers come afterwards, in
+# order: framework versions, then nested .app bundles, then the app itself.
+# Signing a file inside a bundle does break that bundle's seal -- which is
+# what the first notarization failed on -- but the answer is to re-seal the
+# container afterwards, not to leave its contents unsigned.
 print "Signing bundled binaries (this takes a minute on a bundle this size)…"
 failed=0
 while IFS= read -r -d '' binary; do
-  case "$binary" in
-    *.app/*|*.framework/*) continue ;;
-  esac
-  file "$binary" | grep -q 'Mach-O' || continue
+  # Everything, including code inside nested bundles. Excluding those left
+  # 475 unsigned .so files inside Inkscape's framework: sealing a bundle
+  # covers its resources, but the notary service still wants each Mach-O
+  # signed. Inside-out is the rule -- files first, containers after.
+  [[ "$(file -b "$binary")" == *Mach-O* ]] || continue
   # No `|| true` here. A binary that cannot be signed is a binary the notary
   # service will reject, and swallowing that is how the failure stayed hidden.
   if ! codesign --force --timestamp --options runtime \
@@ -99,12 +99,17 @@ done < <(find "$APP_PATH/Contents/Resources" \
 # Mach-O inside leaves the framework reporting "a sealed resource is missing
 # or invalid", which passes codesign --verify on the file and fails the notary
 # service on the bundle.
-while IFS= read -r -d '' version; do
-  [[ -L "$version" ]] && continue          # Versions/Current is a symlink
-  print "  signing framework: ${version#$APP_PATH/Contents/Resources/}"
-  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$version"
-done < <(find "$APP_PATH/Contents/Resources" -type d -path '*.framework/Versions/*' \
-  -maxdepth 6 -mindepth 1 -print0 2>/dev/null)
+#
+# No depth limit. Inkscape's embedded Python framework sits seven levels down
+# and an earlier -maxdepth 6 matched nothing at all, silently, so the notary
+# service found the ad-hoc signature instead.
+while IFS= read -r -d '' framework; do
+  for version in "$framework"/Versions/*(N); do
+    [[ -L "$version" || ! -d "$version" ]] && continue   # Versions/Current is a symlink
+    print "  signing framework: ${version#$APP_PATH/Contents/Resources/}"
+    codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$version"
+  done
+done < <(find "$APP_PATH/Contents/Resources" -type d -name '*.framework' -print0 2>/dev/null)
 
 # Nested .app bundles are signed as units, after their contents.
 while IFS= read -r -d '' nested; do
@@ -121,12 +126,40 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH" \
   || die "Signature verification failed."
 print "Signature verified."
 
+# What the notary service checks, checked here first. Three submissions were
+# spent learning about ad-hoc signatures Apple found and this script did not,
+# each one a five-minute round trip after a full sign and package.
+print "Verifying every bundled binary carries a Developer ID signature…"
+adhoc=0
+while IFS= read -r -d '' binary; do
+  # No pipelines here. Under `set -o pipefail`, `codesign -dvv | grep -q`
+  # reports failure whenever grep matches early: grep exits, codesign takes
+  # SIGPIPE mid-write, and the pipeline's status is codesign's. Every signed
+  # binary was counted as unsigned, and the release stopped on 475 files that
+  # were all correctly signed.
+  [[ "$(file -b "$binary")" == *Mach-O* ]] || continue
+  description="$(codesign -dvv "$binary" 2>&1)"
+  if [[ "$description" != *"Authority=Developer ID Application"* ]]; then
+    print -u2 "  not Developer ID signed: ${binary#$APP_PATH/}"
+    adhoc=$(( adhoc + 1 ))
+  fi
+done < <(find "$APP_PATH" \
+  \( -type f \( -perm -u+x -o -name '*.dylib' -o -name '*.so' \) \) -print0 2>/dev/null)
+(( adhoc == 0 )) \
+  || die "$adhoc bundled binaries are not Developer ID signed; the notary service would reject them."
+print "All bundled binaries are Developer ID signed."
+
 # --- Package ---------------------------------------------------------------
 mkdir -p "$DIST_DIR"
 # The stamp is written as a git ref ("v0.4.2"); carry the tag spelling and a
 # bare number separately so neither the filename nor the tag grows a second v.
 ENGINE_REF="$(cat "$APP_PATH/Contents/Resources/BundledBackend/ENGINE_VERSION" 2>/dev/null || echo dev)"
-VERSION="${ENGINE_REF#v}"
+# The disk image is named after the app, which is what the person downloading
+# it sees in Finder and in About. It followed the engine version until the two
+# diverged for a packaging-only fix, and then produced a 0.4.9 app inside a
+# file called 0.4.8.
+VERSION="$(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null \
+           || print -- "${ENGINE_REF#v}")"
 # The ref is a git ref, and a branch name contains slashes. Unsanitised it
 # turned the disk image into dist/MacShapearator-fix/label-.../....dmg and
 # hdiutil failed on a directory that was never created.
@@ -164,4 +197,5 @@ xcrun stapler staple "$DMG_PATH" || die "Could not staple the notarization ticke
 print "Notarized and stapled: $DMG_PATH"
 print ""
 print "Publish it as a release asset rather than committing it:"
-print "  gh release create \"$ENGINE_REF\" \"$DMG_PATH\" --repo tsevis/MacShapearator"
+print "  gh release create \"v$VERSION\" \"$DMG_PATH\" --repo tsevis/MacShapearator"
+print "  (engine in this build: $ENGINE_REF)"
