@@ -2,7 +2,7 @@
 
 A native macOS app for [Shapearator](https://github.com/tsevis/shapearator).
 
-Version `0.4.8`
+Version `0.4.9`
 
 ![MacShapearator workspace](docs/workspace.png)
 
