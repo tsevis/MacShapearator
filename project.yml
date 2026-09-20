@@ -8,7 +8,12 @@ settings:
     # version shown in Finder and About matches the engine doing the work.
     MARKETING_VERSION: "0.4.8"
     CURRENT_PROJECT_VERSION: "1"
-    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    # Not a choice: the bundled interpreter, OpenSSL and potrace come from
+    # pyenv and Homebrew carrying this machine's deployment target, and the
+    # highest of them is 15.4. Declaring 13.0 promised macOS the app could
+    # open on but never start its engine on. Scripts/check_minimum_os.py
+    # fails the build if the two drift apart again.
+    MACOSX_DEPLOYMENT_TARGET: "15.4"
     SWIFT_VERSION: "5.9"
     # The packaged app is built by xcodebuild, not SwiftPM, so the checking
     # Package.swift turns on has to be turned on here too or it only ever

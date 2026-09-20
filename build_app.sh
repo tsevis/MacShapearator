@@ -270,5 +270,13 @@ xcodebuild \
   -derivedDataPath build \
   build
 
+# Every Mach-O records the oldest macOS it loads on, and the bundled ones are
+# not built here -- they carry whatever target pyenv and Homebrew used. If
+# that is newer than the app promises, the app opens on a machine where its
+# engine cannot start.
+"$PYTHON_SRC/bin/python3" Scripts/check_minimum_os.py \
+  "build/Build/Products/$CONFIG/MacShapearator.app" \
+  || die "The app promises a macOS it cannot run on."
+
 print "Built app: $(pwd)/build/Build/Products/$CONFIG/MacShapearator.app"
 print "Bundled engine: $SHAPEARATOR_REF"

@@ -52,7 +52,7 @@ icon, because the artwork groups it that way.*
 
 ## Requirements
 
-macOS 13 or newer. Nothing else — the Python engine, its dependencies, Inkscape
+macOS 15.4 or newer. Nothing else — the Python engine, its dependencies, Inkscape
 and potrace are all bundled.
 
 A vision model backend is optional, and only needed for semantic naming. The

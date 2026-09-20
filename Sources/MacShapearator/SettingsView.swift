@@ -20,8 +20,7 @@ struct SettingsView: View {
             .padding(.top, 4)
         }
         .task { runtime.refresh(using: settingsStore.settings) }
-        // Single-argument form: the deployment target is macOS 13.
-        .onChange(of: provider) { _ in
+        .onChange(of: provider) {
             Task { await runtime.refreshPreflight(using: settingsStore.settings) }
         }
     }

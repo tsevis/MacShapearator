@@ -113,7 +113,7 @@ struct WorkspaceView: View {
                             }
                         }
                         .pickerStyle(.menu)
-                        .onChange(of: selectedPreset) { value in
+                        .onChange(of: selectedPreset) { _, value in
                             applyPreset(value)
                         }
                     }
