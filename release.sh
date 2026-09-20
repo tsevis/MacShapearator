@@ -71,22 +71,46 @@ fi
 # --- Sign ------------------------------------------------------------------
 # Nested code must be signed inside-out. --deep is unreliable for bundles that
 # contain a whole app and an interpreter, so every Mach-O is signed explicitly.
-print "Signing nested binaries (this takes a minute on a bundle this size)…"
-find "$APP_PATH/Contents/Resources" \
-  \( -type f \( -perm -u+x -o -name '*.dylib' -o -name '*.so' \) \) -print0 2>/dev/null \
-  | while IFS= read -r -d '' binary; do
-      file "$binary" | grep -q 'Mach-O' || continue
-      codesign --force --timestamp --options runtime \
-        --sign "$SIGN_IDENTITY" "$binary" >/dev/null 2>&1 || true
-    done
+# Loose Mach-O files first -- our interpreter and tools, which sit in plain
+# directories. Anything inside a nested .app or .framework is deliberately
+# skipped: those are bundles, and signing a file inside one breaks the seal
+# of the bundle around it. That is exactly what the first notarization
+# attempt failed on, with "The signature of the binary is invalid" for
+# Inkscape's executable and its embedded Python framework.
+print "Signing bundled binaries (this takes a minute on a bundle this size)…"
+failed=0
+while IFS= read -r -d '' binary; do
+  case "$binary" in
+    *.app/*|*.framework/*) continue ;;
+  esac
+  file "$binary" | grep -q 'Mach-O' || continue
+  # No `|| true` here. A binary that cannot be signed is a binary the notary
+  # service will reject, and swallowing that is how the failure stayed hidden.
+  if ! codesign --force --timestamp --options runtime \
+       --sign "$SIGN_IDENTITY" "$binary" >/dev/null 2>&1; then
+    print -u2 "  could not sign: ${binary#$APP_PATH/}"
+    failed=$(( failed + 1 ))
+  fi
+done < <(find "$APP_PATH/Contents/Resources" \
+  \( -type f \( -perm -u+x -o -name '*.dylib' -o -name '*.so' \) \) -print0 2>/dev/null)
+(( failed == 0 )) || die "$failed bundled binaries could not be signed."
+
+# A framework is signed by its version directory, as a unit. Signing the bare
+# Mach-O inside leaves the framework reporting "a sealed resource is missing
+# or invalid", which passes codesign --verify on the file and fails the notary
+# service on the bundle.
+while IFS= read -r -d '' version; do
+  [[ -L "$version" ]] && continue          # Versions/Current is a symlink
+  print "  signing framework: ${version#$APP_PATH/Contents/Resources/}"
+  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$version"
+done < <(find "$APP_PATH/Contents/Resources" -type d -path '*.framework/Versions/*' \
+  -maxdepth 6 -mindepth 1 -print0 2>/dev/null)
 
 # Nested .app bundles are signed as units, after their contents.
-find "$APP_PATH/Contents/Resources" -name '*.app' -maxdepth 3 -print0 2>/dev/null \
-  | while IFS= read -r -d '' nested; do
-      print "  signing nested bundle: $(basename "$nested")"
-      codesign --force --timestamp --options runtime \
-        --sign "$SIGN_IDENTITY" "$nested"
-    done
+while IFS= read -r -d '' nested; do
+  print "  signing nested bundle: $(basename "$nested")"
+  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$nested"
+done < <(find "$APP_PATH/Contents/Resources" -name '*.app' -maxdepth 3 -print0 2>/dev/null)
 
 print "Signing the app bundle…"
 codesign --force --timestamp --options runtime \
