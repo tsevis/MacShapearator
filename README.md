@@ -44,12 +44,30 @@ icon, because the artwork groups it that way.*
 ## What it does
 
 - Reads `PNG` and `SVG` sheets, exports `PNG`, `JPG`, `TIFF` and `SVG`
+- Takes one sheet or a whole folder of them in a single run
 - Finds each icon, crops it, and normalizes it onto a shared canvas
 - Splits SVG sheets by the artwork's own groups, by every shape, or by pixels
 - Names icons semantically with a local vision model, via **Ollama or llama.cpp**
 - Downloads a vision model for you, from either backend, with progress
 - Replaces a previous export cleanly, never touching files you put there
 - Writes per-icon metadata that is safe to publish
+
+### One sheet, or a folder of them
+
+The **Input** row has two buttons. **Sheet** picks a single file, as before.
+**Folder** takes a folder, and every `.png` and `.svg` directly inside it is
+extracted in one run — each into its own subfolder of the output folder, named
+after the sheet, so two sheets' `icon_001` cannot overwrite each other.
+
+Subfolders are not searched. An export folder sitting inside the input folder
+is full of files with the right suffixes, and descending into one would feed a
+previous run's icons back through the extractor.
+
+A sheet that cannot be read does not end the run: it is named in the warnings,
+its empty output folder is taken back, and the remaining sheets are extracted.
+The line under the Input row counts what the app can see before you start,
+because choosing the folder *above* the artwork otherwise costs a whole run to
+discover.
 
 ### Splitting an SVG sheet
 

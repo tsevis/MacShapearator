@@ -138,6 +138,58 @@ def test_no_setting_the_app_sent_was_rejected(extraction):
     assert rejected == [], f"the engine ignored settings the app sent: {rejected}"
 
 
+# --- a folder of sheets, through the same bridge ---------------------------
+
+@pytest.fixture(scope="module")
+def folder_extraction(tmp_path_factory) -> list[tuple[str, dict]]:
+    """One real run over a folder holding two sheets and one unreadable file."""
+    tmp_path = tmp_path_factory.mktemp("folder")
+    sheets = tmp_path / "sheets"
+    sheets.mkdir()
+    sample = engine_root() / "docs" / "base.png"
+    (sheets / "first.png").write_bytes(sample.read_bytes())
+    (sheets / "second.png").write_bytes(sample.read_bytes())
+    (sheets / "broken.png").write_bytes(b"not a png")
+    (sheets / "notes.txt").write_text("ignored")
+    events, code = run_bridge("extract_bridge.py", [
+        "--settings", str(settings_file(tmp_path)),
+        "--input", str(sheets),
+        "--output", str(tmp_path / "out"),
+        "--preview-dir", str(tmp_path / "previews"),
+        "--formats", "png",
+    ])
+    assert code == 0, f"the bridge failed: {events[-3:]}"
+    return events
+
+
+def test_a_folder_run_reports_one_result_the_app_can_decode(folder_extraction):
+    results = tagged(folder_extraction, "RESULT")
+    assert len(results) == 1, f"expected exactly one RESULT, got {len(results)}"
+    result = results[0]
+    assert not missing(RESULT_KEYS, result)
+    assert not missing(NAMING_KEYS, result["naming"])
+    assert not missing(COMMIT_KEYS, result["commit"])
+    for icon in result["icons"]:
+        assert not missing(ICON_KEYS, icon)
+
+
+def test_a_folder_run_returns_every_sheet_s_icons(folder_extraction):
+    """One RESULT, but the icons of both readable sheets are in it."""
+    result = tagged(folder_extraction, "RESULT")[0]
+    directories = {Path(icon["outputs"]["png"]).parent.parent.name for icon in result["icons"]}
+    assert directories == {"first", "second"}
+
+
+def test_an_unreadable_sheet_is_named_in_the_warnings(folder_extraction):
+    result = tagged(folder_extraction, "RESULT")[0]
+    assert any("broken.png" in warning for warning in result["warnings"]), result["warnings"]
+
+
+def test_a_folder_run_still_reports_progress(folder_extraction):
+    sheets = [p for p in tagged(folder_extraction, "PROGRESS") if p["phase"] == "sheet"]
+    assert [(p["current"], p["total"]) for p in sheets] == [(1, 3), (2, 3), (3, 3)]
+
+
 def test_progress_carries_the_fields_the_progress_bar_reads(extraction):
     events = tagged(extraction, "PROGRESS")
     assert events, "no PROGRESS lines: the UI would sit at zero for the whole run"

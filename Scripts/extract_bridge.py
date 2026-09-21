@@ -118,7 +118,43 @@ def icon_record(icon, preview_dir: Path, export_svg_to_png) -> dict:
     }
 
 
+def batch_payload(outcome, preview_dir: Path, export_svg_to_png, engine_version: str) -> dict:
+    """Describe a folder run as one RESULT.
+
+    The app shows every icon from the whole folder in one table, so the
+    records are flattened and the counts summed. Each icon keeps the absolute
+    path it was written to, so opening one still lands in its own sheet's
+    subfolder.
+    """
+    succeeded = [sheet.result for sheet in outcome.sheets if sheet.result is not None]
+    naming = [result.naming for result in succeeded]
+    commits = [result.commit for result in succeeded if result.commit is not None]
+    return {
+        "inputPath": str(outcome.folder),
+        "outputDir": str(outcome.output_root),
+        "providerSummary": succeeded[0].provider_summary if succeeded else "",
+        "engineVersion": engine_version,
+        "icons": [icon_record(icon, preview_dir, export_svg_to_png) for icon in outcome.icons],
+        "naming": {
+            "requested": any(entry.requested for entry in naming),
+            "provider": naming[0].provider if naming else None,
+            "model": naming[0].model if naming else None,
+            "named": sum(entry.named for entry in naming),
+            "failed": sum(entry.failed for entry in naming),
+            "errors": [error for entry in naming for error in entry.errors],
+            "summary": outcome.summary(),
+        },
+        "commit": {
+            "written": sum(report.written for report in commits),
+            "replaced": sum(report.replaced for report in commits),
+            "preserved": sum(report.preserved for report in commits),
+        },
+        "warnings": list(outcome.warnings),
+    }
+
+
 def run(args: argparse.Namespace, backend_root: Path) -> int:
+    from services.batch import NoSheetsFound, extract_folder
     from services.extractor import IconExtractor
     from services.extraction_types import ExtractionProgress  # noqa: F401  (documents the payload)
     from services.semantic_naming import SemanticPreflightError, naming_requested
@@ -150,14 +186,24 @@ def run(args: argparse.Namespace, backend_root: Path) -> int:
             "message": progress.message,
         })
 
+    is_folder = input_path.is_dir()
     try:
-        result = IconExtractor(settings).extract(
-            input_path,
-            output_dir,
-            set(args.formats),
-            progress_callback=on_progress,
-            allow_unnamed=args.allow_unnamed,
-        )
+        if is_folder:
+            outcome = extract_folder(
+                settings, input_path, output_dir, set(args.formats),
+                progress_callback=on_progress, allow_unnamed=args.allow_unnamed,
+            )
+        else:
+            result = IconExtractor(settings).extract(
+                input_path,
+                output_dir,
+                set(args.formats),
+                progress_callback=on_progress,
+                allow_unnamed=args.allow_unnamed,
+            )
+    except NoSheetsFound as exc:
+        emit("ERROR", {"kind": "input", "message": str(exc)})
+        return 1
     except SemanticPreflightError as exc:
         emit("ERROR", {
             "kind": "preflight",
@@ -174,6 +220,11 @@ def run(args: argparse.Namespace, backend_root: Path) -> int:
         return 1
 
     preview_dir = args.preview_dir or Path(tempfile.mkdtemp(prefix="macshapearator_previews_"))
+    if is_folder:
+        emit("RESULT", batch_payload(
+            outcome, preview_dir, export_svg_to_png, _engine_version(backend_root)))
+        # Every sheet unreadable is a failed run, not an empty success.
+        return 1 if outcome.extracted_count == 0 else 0
     emit("RESULT", {
         "inputPath": str(result.input_path),
         "outputDir": str(result.output_dir),

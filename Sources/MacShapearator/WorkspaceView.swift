@@ -90,7 +90,7 @@ struct WorkspaceView: View {
     private var sourceCard: some View {
         GroupBox("Source") {
             VStack(spacing: 8) {
-                fileRow(title: "Input Sheet", text: binding(\.lastInputPath), canChooseDirectory: false)
+                inputRow
                 fileRow(title: "Output Folder", text: binding(\.lastOutputDir), canChooseDirectory: true)
                 Text(providerSummary)
                     .font(.headline)
@@ -270,6 +270,51 @@ struct WorkspaceView: View {
         if exportTIFF { formats.insert("tiff") }
         if exportSVG { formats.insert("svg") }
         return formats.isEmpty ? ["png"] : formats
+    }
+
+    /// Input takes either one sheet or a folder of them, so it gets two
+    /// buttons rather than the single Browse the output row needs.
+    private var inputRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Text("Input")
+                    .frame(width: 96, alignment: .leading)
+                TextField("", text: binding(\.lastInputPath))
+                    .textFieldStyle(.roundedBorder)
+                Button("Sheet") {
+                    choosePath(for: binding(\.lastInputPath), canChooseDirectory: false)
+                }
+                Button("Folder") {
+                    chooseInputFolder()
+                }
+            }
+            if let summary = InputSummary.describe(path: settingsStore.settings.lastInputPath) {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 106)
+            }
+        }
+    }
+
+    /// A folder of sheets: every one inside is extracted in a single run, each
+    /// into its own subfolder of the output folder.
+    private func chooseInputFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose Folder"
+        panel.message = "Select a folder of sheets. Every .png and .svg directly inside it is extracted."
+        let current = settingsStore.settings.lastInputPath
+        if !current.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: current)
+        }
+        if panel.runModal() == .OK, let chosen = panel.url?.path {
+            settingsStore.settings.lastInputPath = chosen
+        }
     }
 
     private func fileRow(title: String, text: Binding<String>, canChooseDirectory: Bool) -> some View {
