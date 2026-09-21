@@ -174,7 +174,6 @@ struct ServerRecord: Codable {
 
 struct ExtractedIconRecord: Codable, Identifiable, Hashable {
     let index: Int
-    var id: Int { index }
     let stem: String
     let outputs: [String: String]
     let previewPath: String?
@@ -187,6 +186,28 @@ struct ExtractedIconRecord: Codable, Identifiable, Hashable {
     let namingError: String?
     let semanticTags: [String]?
     let semanticConfidence: Double?
+
+    /// Unique across a whole run, which `index` is not: a folder run numbers
+    /// every sheet's icons from one, so five sheets each hold an `index == 1`.
+    /// The results list is a `ForEach` over `Identifiable` and resolves a
+    /// click by finding the first record with a matching id, so a repeated id
+    /// drops rows and previews the wrong icon.
+    var id: String {
+        // The exported path is unique by construction; the stem alone is not.
+        outputs.sorted { $0.key < $1.key }.first?.value ?? "\(index)-\(stem)"
+    }
+
+    /// The sheet this icon came from, when the run had more than one.
+    ///
+    /// A folder run writes `<output>/<sheet>/<format>/icon_001.svg`, so the
+    /// grandparent of the file names the sheet. nil when there is no export
+    /// to read it from.
+    var sheetFolder: String? {
+        guard let path = outputs.sorted(by: { $0.key < $1.key }).first?.value else { return nil }
+        let folder = URL(fileURLWithPath: path).deletingLastPathComponent().deletingLastPathComponent()
+        let name = folder.lastPathComponent
+        return name.isEmpty || name == "/" ? nil : name
+    }
 
     var wasNamed: Bool { namingStatus == "named" }
     var namingDidFail: Bool { namingStatus == "failed" }

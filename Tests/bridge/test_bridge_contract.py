@@ -190,6 +190,33 @@ def test_a_folder_run_still_reports_progress(folder_extraction):
     assert [(p["current"], p["total"]) for p in sheets] == [(1, 3), (2, 3), (3, 3)]
 
 
+def test_a_folder_where_nothing_could_be_read_reports_an_error_not_a_result(tmp_path):
+    """RESULT and a non-zero exit must never arrive together.
+
+    Swift drains the events, sets .success on RESULT, then checks the exit
+    code -- and a non-zero one overwrites that success with a bare
+    "Extraction failed with status 1", burying the per-sheet reasons the
+    warnings card is showing directly underneath it.
+    """
+    sheets = tmp_path / "sheets"
+    sheets.mkdir()
+    for name in ("one.png", "two.png"):
+        (sheets / name).write_bytes(b"not a png")
+    events, code = run_bridge("extract_bridge.py", [
+        "--settings", str(settings_file(tmp_path)),
+        "--input", str(sheets),
+        "--output", str(tmp_path / "out"),
+        "--preview-dir", str(tmp_path / "previews"),
+        "--formats", "png",
+    ])
+
+    assert tagged(events, "RESULT") == [], "a run that extracted nothing is not a result"
+    errors = tagged(events, "ERROR")
+    assert len(errors) == 1, events
+    assert "one.png" in errors[0]["message"] and "two.png" in errors[0]["message"]
+    assert code == 1
+
+
 def test_progress_carries_the_fields_the_progress_bar_reads(extraction):
     events = tagged(extraction, "PROGRESS")
     assert events, "no PROGRESS lines: the UI would sit at zero for the whole run"

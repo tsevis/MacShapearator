@@ -62,13 +62,20 @@ struct ResultsPane: View {
         }
     }
 
+    /// True when the run covered several sheets, whose icons all start again
+    /// at `icon_001`. Naming the sheet is the only thing that tells two rows
+    /// apart; for a single-sheet run it would be noise on every line.
+    private var showsSheetNames: Bool {
+        Set((viewModel.result?.icons ?? []).compactMap(\.sheetFolder)).count > 1
+    }
+
     /// One result row. The engine reports per-icon naming outcomes; a run
     /// where four of forty icons went unnamed should say which four.
     private func iconRow(_ icon: ExtractedIconRecord) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(icon.stem)
+                    Text(showsSheetNames ? "\(icon.sheetFolder ?? "?")/\(icon.stem)" : icon.stem)
                         .font(.headline)
                     if icon.namingDidFail {
                         Image(systemName: "exclamationmark.triangle.fill")

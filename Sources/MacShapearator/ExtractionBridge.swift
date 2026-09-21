@@ -167,6 +167,10 @@ final class ExtractionViewModel: ObservableObject {
         // recoverable one is waiting on the user; only fall back to stderr
         // when the bridge died without reporting anything.
         if case .failed = state { return }
+        // A RESULT already reported a finished run. An exit code that
+        // disagrees would replace a specific completion message with a bare
+        // status number, above a warnings card explaining what really happened.
+        if case .success = state { return }
         if pendingUnnamedPrompt != nil { return }
         if outcome.terminationStatus == SIGTERM {
             state = .idle

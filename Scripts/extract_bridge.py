@@ -221,10 +221,22 @@ def run(args: argparse.Namespace, backend_root: Path) -> int:
 
     preview_dir = args.preview_dir or Path(tempfile.mkdtemp(prefix="macshapearator_previews_"))
     if is_folder:
+        if outcome.extracted_count == 0:
+            # A folder where nothing could be read is a failed run, and it has
+            # to fail the way every other failure does. RESULT paired with a
+            # non-zero exit is a combination the app cannot represent: it sets
+            # a success state from the event, then the exit code overwrites it
+            # with a bare "Extraction failed with status 1" -- printed above a
+            # warnings card that is listing the real per-sheet reasons.
+            emit("ERROR", {
+                "kind": "extraction",
+                "message": "No sheet in this folder could be extracted.\n\n"
+                           + "\n".join(outcome.warnings),
+            })
+            return 1
         emit("RESULT", batch_payload(
             outcome, preview_dir, export_svg_to_png, _engine_version(backend_root)))
-        # Every sheet unreadable is a failed run, not an empty success.
-        return 1 if outcome.extracted_count == 0 else 0
+        return 0
     emit("RESULT", {
         "inputPath": str(result.input_path),
         "outputDir": str(result.output_dir),
