@@ -90,7 +90,9 @@ final class EngineCompatibilityTests: XCTestCase {
     }
 
     func testCurrentEngineIsAccepted() throws {
-        try writeExtractor(version: "0.4.1")
+        // The threshold itself, not a copy of it: restating the number here is
+        // how this test came to assert a version the app had already left.
+        try writeExtractor(version: AppRuntime.minimumEngineVersion.description)
         XCTAssertNil(AppRuntime.engineCompatibilityProblem(at: root))
     }
 
@@ -103,7 +105,9 @@ final class EngineCompatibilityTests: XCTestCase {
         try writeExtractor(version: "0.3.2")
         let problem = try XCTUnwrap(AppRuntime.engineCompatibilityProblem(at: root))
         XCTAssertTrue(problem.contains("0.3.2"), problem)
-        XCTAssertTrue(problem.contains("0.4.1"), problem)
+        // A literal would match by substring -- "0.4.10" contains "0.4.1" --
+        // and report a message naming the wrong minimum as correct.
+        XCTAssertTrue(problem.contains(AppRuntime.minimumEngineVersion.description), problem)
         XCTAssertTrue(problem.contains("build_app.sh"), problem)
     }
 
