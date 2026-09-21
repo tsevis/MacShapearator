@@ -33,6 +33,22 @@ final class SettingsMigrationTests: XCTestCase {
         XCTAssertFalse(settings.modelsRoot.isEmpty)
     }
 
+    /// `init(from:)` lists every field by hand. One added to the struct and
+    /// forgotten there decodes to its default, so the user's choice reverts on
+    /// every launch and nothing reports it.
+    func testAChosenSplitModeSurvivesARoundTrip() throws {
+        var settings = ExtractionSettings()
+        settings.svgSplit = "shape"
+        let data = try JSONEncoder().encode(settings)
+        let restored = try JSONDecoder().decode(ExtractionSettings.self, from: data)
+        XCTAssertEqual(restored.svgSplit, "shape")
+    }
+
+    func testAFileWrittenBeforeSplitModesStillFollowsTheArtwork() throws {
+        let settings = try JSONDecoder().decode(ExtractionSettings.self, from: Data(legacy.utf8))
+        XCTAssertEqual(settings.svgSplit, "auto")
+    }
+
     func testAnEmptyObjectDecodesToDefaults() throws {
         let settings = try JSONDecoder().decode(ExtractionSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(settings, ExtractionSettings())

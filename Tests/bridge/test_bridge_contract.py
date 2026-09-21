@@ -57,7 +57,7 @@ BASE_SETTINGS = {
     "outputWidth": 512, "outputHeight": 512,
     "canvasMode": "uniform_to_largest",
     "bitmapExportMode": "transparent_preserve_interior",
-    "padding": 12, "minArea": 200, "mergeGap": 13,
+    "padding": 12, "minArea": 200, "mergeGap": 13, "svgSplit": "auto",
     "lastInputPath": "", "lastOutputDir": "",
 }
 
@@ -120,6 +120,22 @@ def extraction(tmp_path_factory) -> list[tuple[str, dict]]:
     ])
     assert code == 0, f"the bridge failed: {events[-3:]}"
     return events
+
+
+def test_no_setting_the_app_sent_was_rejected(extraction):
+    """The bridge reports a rejected setting and carries on with the default.
+
+    Every message here is a preference the user changed and the engine then
+    ignored -- a key the alias table forgot, or one renamed on the engine side.
+    It is silent from the app's side, which is the worst way for a setting to
+    fail.
+    """
+    rejected = [
+        record["message"]
+        for record in tagged(extraction, "PROGRESS")
+        if record["phase"] == "settings"
+    ]
+    assert rejected == [], f"the engine ignored settings the app sent: {rejected}"
 
 
 def test_progress_carries_the_fields_the_progress_bar_reads(extraction):

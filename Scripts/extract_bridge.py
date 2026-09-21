@@ -64,6 +64,7 @@ _FIELD_ALIASES = {
     "bitmapExportMode": "bitmap_export_mode",
     "minArea": "min_area",
     "mergeGap": "merge_gap",
+    "svgSplit": "svg_split",
     "lastInputPath": "last_input_path",
     "lastOutputDir": "last_output_dir",
 }

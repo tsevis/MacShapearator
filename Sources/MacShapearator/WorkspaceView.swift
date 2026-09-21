@@ -12,6 +12,19 @@ private let bitmapModeLabels: [(String, String)] = [
     ("transparent_preserve_interior", "B. Export transparent bitmaps while preserving enclosed white details."),
 ]
 
+/// Mirrors SVG_SPLIT_MODES in the engine's settings schema.
+private let svgSplitLabels: [(String, String)] = [
+    ("auto", "Auto"),
+    ("shape", "Every shape"),
+    ("cluster", "Group by touch"),
+]
+
+private let svgSplitHints: [String: String] = [
+    "auto": "Groups in the artwork become icons; loose shapes are clustered by pixels.",
+    "shape": "Every path, polygon or group is its own file. Use this for mosaics and tessellations, whose tiles touch.",
+    "cluster": "Shapes that touch become one icon, even where the artwork groups them otherwise.",
+]
+
 private let customPresetName = "Custom"
 
 private let detectionPresets: [(String, (Int, Int, Int))] = [
@@ -117,9 +130,23 @@ struct WorkspaceView: View {
                             applyPreset(value)
                         }
                     }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Split (SVG)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Split", selection: binding(\.svgSplit)) {
+                            ForEach(svgSplitLabels, id: \.0) { key, label in
+                                Text(label).tag(key)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
                     Spacer(minLength: 0)
                 }
                 Text("Use Padding to breathe around each icon. Use Min Area to suppress dust. Use Merge to reconnect multi-stroke marks.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(svgSplitHints[settingsStore.settings.svgSplit] ?? "")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
