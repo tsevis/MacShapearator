@@ -45,10 +45,37 @@ icon, because the artwork groups it that way.*
 
 - Reads `PNG` and `SVG` sheets, exports `PNG`, `JPG`, `TIFF` and `SVG`
 - Finds each icon, crops it, and normalizes it onto a shared canvas
+- Splits SVG sheets by the artwork's own groups, by every shape, or by pixels
 - Names icons semantically with a local vision model, via **Ollama or llama.cpp**
 - Downloads a vision model for you, from either backend, with progress
 - Replaces a previous export cleanly, never touching files you put there
 - Writes per-icon metadata that is safe to publish
+
+### Splitting an SVG sheet
+
+An SVG sheet can mean two different things, and the difference is invisible to
+a pixel. A designer's icon set is `<g>` elements, and the group is the icon —
+a drum kit drawn as nineteen paths must stay one icon. A hand-drawn sheet is
+loose paths, where one icon is several disconnected strokes that only a raster
+pass can gather.
+
+**Auto** reads the artwork and picks: groups if it has them, clustering if it
+does not. That is right for both cases above and wrong for a third — a mosaic
+or a tessellation, which is loose paths whose tiles *touch*. Clustering dilates
+and merges them, and a 417-tile portrait comes out as a single file. `Min Area`
+and `Merge` cannot rescue it, because there are no gaps to measure.
+
+**Split**, in the Detection card, settles it:
+
+| Mode | What it does | Use it for |
+|---|---|---|
+| Auto | Follows the artwork | Icon sets and hand-drawn sheets |
+| Every shape | One file per path, polygon or group | Mosaics, tessellations, maps, any contiguous artwork |
+| Group by touch | Clusters by pixels, ignoring groups | A grouped file whose groups are wrong |
+
+A run that clustered a whole sheet into one icon says so in the results pane,
+so `Auto` getting it wrong looks like a detection result rather than a broken
+export.
 
 ## Requirements
 
