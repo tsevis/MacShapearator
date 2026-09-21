@@ -6,9 +6,10 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: com.tsevis.MacShapearator
     # Follows the Shapearator engine release this app is built against, so the
     # version in Finder and About names the engine doing the work. It moves
-    # ahead of the engine for a fix that is only in the packaging -- 0.4.9
-    # ships engine v0.4.8 with a corrected minimum macOS.
-    MARKETING_VERSION: "0.4.9"
+    # ahead of the engine for a fix that is only in the packaging, and falls
+    # back in step at the next shared release -- 0.4.9 shipped engine v0.4.8
+    # with a corrected minimum macOS; 0.4.10 ships engine v0.4.10.
+    MARKETING_VERSION: "0.4.10"
     CURRENT_PROJECT_VERSION: "1"
     # Not a choice: the bundled interpreter, OpenSSL and potrace come from
     # pyenv and Homebrew carrying this machine's deployment target, and the
