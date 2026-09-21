@@ -23,6 +23,10 @@ struct ExtractionSettings: Codable, Equatable {
     var padding: Int = 12
     var minArea: Int = 200
     var mergeGap: Int = 13
+    /// How an SVG sheet is cut into icons: "auto" follows the artwork,
+    /// "shape" gives every element its own file, "cluster" groups touching
+    /// shapes by pixels. Mirrors SVG_SPLIT_MODES in the engine schema.
+    var svgSplit: String = "auto"
     var lastInputPath: String = ""
     var lastOutputDir: String = ""
 }
@@ -64,6 +68,7 @@ extension ExtractionSettings {
         padding = container.value(.padding, or: fallback.padding)
         minArea = container.value(.minArea, or: fallback.minArea)
         mergeGap = container.value(.mergeGap, or: fallback.mergeGap)
+        svgSplit = container.value(.svgSplit, or: fallback.svgSplit)
         lastInputPath = container.value(.lastInputPath, or: fallback.lastInputPath)
         lastOutputDir = container.value(.lastOutputDir, or: fallback.lastOutputDir)
     }
