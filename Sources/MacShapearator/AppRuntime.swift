@@ -5,7 +5,7 @@ enum AppRuntime {
     /// behaviour added in 0.4.1 (enforced preflight, per-icon naming status,
     /// staged manifest-tracked exports), so an older engine would misreport
     /// results rather than fail loudly. Keep in step with build_app.sh.
-    static let minimumEngineVersion = SemanticVersion(0, 4, 10)
+    static let minimumEngineVersion = SemanticVersion(0, 4, 11)
 
     static let bundledBackendFolder = "BundledBackend"
     static let bundledPythonFolder = "BundledPython"
