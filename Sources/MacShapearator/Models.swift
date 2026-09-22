@@ -27,6 +27,10 @@ struct ExtractionSettings: Codable, Equatable {
     /// "shape" gives every element its own file, "cluster" groups touching
     /// shapes by pixels. Mirrors SVG_SPLIT_MODES in the engine schema.
     var svgSplit: String = "auto"
+    /// What each layer of an exported PSD is made of, and where it sits.
+    /// Mirrors PSD_LAYER_MODES and PSD_LAYOUTS in the engine schema.
+    var psdLayers: String = "bitmap"
+    var psdLayout: String = "sheet"
     var lastInputPath: String = ""
     var lastOutputDir: String = ""
 }
@@ -69,6 +73,8 @@ extension ExtractionSettings {
         minArea = container.value(.minArea, or: fallback.minArea)
         mergeGap = container.value(.mergeGap, or: fallback.mergeGap)
         svgSplit = container.value(.svgSplit, or: fallback.svgSplit)
+        psdLayers = container.value(.psdLayers, or: fallback.psdLayers)
+        psdLayout = container.value(.psdLayout, or: fallback.psdLayout)
         lastInputPath = container.value(.lastInputPath, or: fallback.lastInputPath)
         lastOutputDir = container.value(.lastOutputDir, or: fallback.lastOutputDir)
     }

@@ -49,6 +49,22 @@ final class SettingsMigrationTests: XCTestCase {
         XCTAssertEqual(settings.svgSplit, "auto")
     }
 
+    func testTheChosenPsdSettingsSurviveARoundTrip() throws {
+        var settings = ExtractionSettings()
+        settings.psdLayers = "vector"
+        settings.psdLayout = "canvas"
+        let data = try JSONEncoder().encode(settings)
+        let restored = try JSONDecoder().decode(ExtractionSettings.self, from: data)
+        XCTAssertEqual(restored.psdLayers, "vector")
+        XCTAssertEqual(restored.psdLayout, "canvas")
+    }
+
+    func testAFileWrittenBeforePsdExportGetsTheUsefulDefaults() throws {
+        let settings = try JSONDecoder().decode(ExtractionSettings.self, from: Data(legacy.utf8))
+        XCTAssertEqual(settings.psdLayers, "bitmap")
+        XCTAssertEqual(settings.psdLayout, "sheet")
+    }
+
     func testAnEmptyObjectDecodesToDefaults() throws {
         let settings = try JSONDecoder().decode(ExtractionSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(settings, ExtractionSettings())

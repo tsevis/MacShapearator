@@ -25,6 +25,24 @@ private let svgSplitHints: [String: String] = [
     "cluster": "Shapes that touch become one icon, even where the artwork groups them otherwise.",
 ]
 
+/// One layered Photoshop file per sheet. Two questions, two pickers: what a
+/// layer is made of, and where it sits. Mirrors the engine's schema.
+private let psdLayerLabels: [(String, String)] = [
+    ("bitmap", "Bitmap"),
+    ("bitmap_paths", "Bitmap + paths"),
+    ("vector", "Vector shapes"),
+]
+
+private let psdLayoutLabels: [(String, String)] = [
+    ("sheet", "Rebuild the sheet"),
+    ("canvas", "On the export canvas"),
+]
+
+private let psdLayoutHints: [String: String] = [
+    "sheet": "The document takes the artwork's size and every shape keeps its place, so the file opens looking like the original. The canvas above does not apply.",
+    "canvas": "Every shape is placed the way its single file is, centred on the export canvas above.",
+]
+
 private let customPresetName = "Custom"
 
 private let detectionPresets: [(String, (Int, Int, Int))] = [
@@ -42,6 +60,7 @@ struct WorkspaceView: View {
     @State private var exportJPG = false
     @State private var exportTIFF = false
     @State private var exportSVG = true
+    @State private var exportPSD = false
     @State private var selectedPreset = "Balanced"
 
     var body: some View {
@@ -164,6 +183,7 @@ struct WorkspaceView: View {
                             Toggle("JPG", isOn: $exportJPG)
                             Toggle("TIFF", isOn: $exportTIFF)
                             Toggle("SVG", isOn: $exportSVG)
+                            Toggle("PSD", isOn: $exportPSD)
                         }
                         .toggleStyle(.checkbox)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -190,6 +210,9 @@ struct WorkspaceView: View {
                 .frame(maxWidth: .infinity)
 
                 VStack(spacing: 10) {
+                    if exportPSD {
+                        psdCard
+                    }
                     GroupBox("Canvas Behavior") {
                         Picker("Canvas Behavior", selection: binding(\.canvasMode)) {
                             ForEach(canvasModeLabels, id: \.0) { key, label in
@@ -269,6 +292,7 @@ struct WorkspaceView: View {
         if exportJPG { formats.insert("jpg") }
         if exportTIFF { formats.insert("tiff") }
         if exportSVG { formats.insert("svg") }
+        if exportPSD { formats.insert("psd") }
         return formats.isEmpty ? ["png"] : formats
     }
 
@@ -314,6 +338,31 @@ struct WorkspaceView: View {
         }
         if panel.runModal() == .OK, let chosen = panel.url?.path {
             settingsStore.settings.lastInputPath = chosen
+        }
+    }
+
+    /// Shown only when PSD is being exported; otherwise it is two controls
+    /// that change nothing, in a column that is already crowded.
+    private var psdCard: some View {
+        GroupBox("Photoshop File") {
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Layers", selection: binding(\.psdLayers)) {
+                    ForEach(psdLayerLabels, id: \.0) { key, label in
+                        Text(label).tag(key)
+                    }
+                }
+                Picker("Layout", selection: binding(\.psdLayout)) {
+                    ForEach(psdLayoutLabels, id: \.0) { key, label in
+                        Text(label).tag(key)
+                    }
+                }
+                Text("One file per sheet, one layer per shape. "
+                     + (psdLayoutHints[settingsStore.settings.psdLayout] ?? ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.top, 4)
         }
     }
 
@@ -401,6 +450,7 @@ struct WorkspaceView: View {
         exportJPG = formats.contains("jpg")
         exportTIFF = formats.contains("tiff")
         exportSVG = formats.contains("svg")
+        exportPSD = formats.contains("psd")
     }
 
     private func detectedPresetName() -> String {

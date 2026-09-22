@@ -65,6 +65,8 @@ _FIELD_ALIASES = {
     "minArea": "min_area",
     "mergeGap": "merge_gap",
     "svgSplit": "svg_split",
+    "psdLayers": "psd_layers",
+    "psdLayout": "psd_layout",
     "lastInputPath": "last_input_path",
     "lastOutputDir": "last_output_dir",
 }

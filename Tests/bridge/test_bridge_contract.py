@@ -58,6 +58,7 @@ BASE_SETTINGS = {
     "canvasMode": "uniform_to_largest",
     "bitmapExportMode": "transparent_preserve_interior",
     "padding": 12, "minArea": 200, "mergeGap": 13, "svgSplit": "auto",
+    "psdLayers": "bitmap", "psdLayout": "sheet",
     "lastInputPath": "", "lastOutputDir": "",
 }
 

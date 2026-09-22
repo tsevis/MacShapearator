@@ -2,7 +2,7 @@
 
 A native macOS app for [Shapearator](https://github.com/tsevis/shapearator).
 
-Version `0.4.12`
+Version `0.4.13`
 
 ![MacShapearator workspace](docs/workspace.png)
 
@@ -45,6 +45,7 @@ icon, because the artwork groups it that way.*
 
 - Reads `PNG` and `SVG` sheets, exports `PNG`, `JPG`, `TIFF` and `SVG`
 - Takes one sheet or a whole folder of them in a single run
+- Exports one layered `PSD` per sheet, a layer per shape, pixels or vector shapes
 - Finds each icon, crops it, and normalizes it onto a shared canvas
 - Splits SVG sheets by the artwork's own groups, by every shape, or by pixels
 - Names icons semantically with a local vision model, via **Ollama or llama.cpp**
@@ -68,6 +69,28 @@ its empty output folder is taken back, and the remaining sheets are extracted.
 The line under the Input row counts what the app can see before you start,
 because choosing the folder *above* the artwork otherwise costs a whole run to
 discover.
+
+### One layered Photoshop file
+
+Tick **PSD** among the formats and a sheet becomes one document with a layer
+per shape, instead of one file per shape. Two pickers appear, answering
+independent questions.
+
+**Layout** decides where a layer sits. *Rebuild the sheet* sizes the document
+to the artwork and keeps every shape where it was, so the file opens looking
+like the original — the export canvas does not apply, because a canvas that
+did would move every shape off the position the layout exists to preserve.
+*On the export canvas* places each shape the way its single file is exported,
+centred, which stacks them in the middle.
+
+**Layers** decides what a layer is made of. *Bitmap* is plain pixels.
+*Bitmap + paths* adds every outline to the Paths panel, so the geometry is
+there to select, stroke or convert. *Vector shapes* makes each layer a solid
+fill behind a vector mask, which is what Photoshop calls a shape layer.
+
+Two shapes can be reported rather than silently missing: one that covers no
+pixel once rasterised gets no layer, and one carrying its own `transform` gets
+no outline, because the geometry would land somewhere other than its pixels.
 
 ### Splitting an SVG sheet
 

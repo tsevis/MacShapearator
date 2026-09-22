@@ -15,11 +15,11 @@ cd "$(dirname "$0")"
 
 # The oldest engine this app can talk to -- keep in step with
 # minimumEngineVersion in Sources/MacShapearator/AppRuntime.swift.
-MINIMUM_ENGINE="v0.4.12"
+MINIMUM_ENGINE="v0.4.13"
 # The engine actually shipped: the newest release tested against this app.
 # Deliberately not the minimum, or every build would ship the oldest engine
 # still supported rather than the current one.
-DEFAULT_ENGINE="v0.4.12"
+DEFAULT_ENGINE="v0.4.13"
 
 # Stands in for the build machine's interpreter prefix inside the bundle's
 # own metadata; nothing resolves it at runtime.
