@@ -277,3 +277,120 @@ Components bundled into the packaged app keep their own licenses: Python (PSF),
 Inkscape (GPL-2.0-or-later), and potrace (GPL-2.0-or-later). They are shipped
 as separate executables the app invokes, not linked into it. If you redistribute
 a built `.app`, those terms travel with it.
+
+## Model licences
+
+MacShapearator ships no model weights. This repository tracks none, and the
+packaged app bundles the interpreter, Inkscape, potrace and the engine, with no
+weights (see What gets bundled). The MIT licence in the License section above
+covers this repository's own code and does not extend to any model.
+
+Semantic naming is off by default: `Sources/MacShapearator/Models.swift` starts
+with `provider = "geometry"` and `semanticNaming = false`. The app does not
+download a model when it starts or when icons are extracted. The only action in
+the Swift code that asks the engine to download a model is the Download button
+in Settings, Vision Models. That panel lists the engine's candidate models and is
+shown also while semantic naming is off; after a download the app applies the
+provider and model name the engine reports. A model can also be added outside the
+app, with Ollama or llama.cpp directly. Weights come from Ollama or from Hugging
+Face onto the user's Mac, each under its own terms, which are not the MIT terms of
+this app.
+
+This section is information, not legal advice. Terms change, so the current text
+at each linked source is the one that counts. The sources were read on
+2026-10-09. Where a row says a point is not settled, it could not be settled from
+the sources read, and the model's authors are the ones who can settle it.
+
+**What the tables cover.** The model catalogue is not in this repository: the app
+asks the Shapearator engine for it (see Architecture). The engine's
+[`services/model_catalog.py`](https://github.com/tsevis/shapearator/blob/f8f238cf96319d6b043ca2a0617794b6e8b4f25b/services/model_catalog.py)
+lists six vision models, and the first table covers all six as of engine commit
+`f8f238c` (2026-09-23), the commit that the default engine reference `v0.4.13` in
+`build_app.sh` points to. The captured engine responses `Tests/Fixtures/models.json`
+and `Tests/Fixtures/setup_status.json` name the same six vision models and no
+other vision model. The second table covers the three further models that
+`models.json` lists. In the Swift sources the only model named is the default
+Ollama tag `qwen2.5vl:3b` (`ollamaModel` in `Models.swift`); the Swift tests also
+name Qwen3-VL.
+
+**What the tables do not cover.**
+
+- Models a user adds. The Ollama model picker lists the vision models found in the
+  user's own Ollama, the llama.cpp panel lists the model loaded on the user's
+  llama.cpp server, and the Model Library button (shown when Ollama is not
+  running) opens `ollama.com/library`. Any other model run this way carries its
+  own terms and is in neither table. The Model Directory panel is described in the
+  app as a local catalog and says that semantic naming needs Ollama or llama.cpp.
+- Other engine versions. A build made with another `SHAPEARATOR_REF` bundles
+  another engine version, which can offer other models. Only the catalogue at the
+  commit named above was read.
+- A test-only name. `Tests/bridge/test_start_server.py` uses the string
+  `Qwen/Qwen3-VL-GGUF:Q4_K_M` as a mock value. It is not a repository that the
+  engine names, and no such repository could be found on Hugging Face.
+- Everything not reviewed for any model: the terms of the datasets a model was
+  trained on, base-model licences beyond those named below, the terms of Ollama
+  and Hugging Face themselves, and the contents of the weight files (licence
+  text was read from cards, licence files and Ollama licence layers).
+
+Vision models the engine catalogue offers:
+
+| Model and weights | Used for | Licence as found | Before commercial use | Sources |
+| --- | --- | --- | --- | --- |
+| **Qwen2.5-VL 3B**: Ollama `qwen2.5vl:3b`, llama.cpp `ggml-org/Qwen2.5-VL-3B-Instruct-GGUF` (Q4_K_M) | Semantic naming through either backend. It is the default `ollamaModel` in `Models.swift` and the default selection in `setup_status.json` | The sources disagree (note 1): the Qwen Research License Agreement upstream, Apache-2.0 on the Ollama licence layer and on the ggml-org card | Not settled. The upstream licence file grants rights for non-commercial purposes only and says commercial users shall request a licence from Alibaba Cloud (note 1). Ask Alibaba Cloud and check the full text before commercial use | [Upstream licence file](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct/blob/main/LICENSE), [Ollama page](https://ollama.com/library/qwen2.5vl:3b), [ggml-org card](https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF) |
+| **Qwen3-VL**: llama.cpp only, `Qwen/Qwen3-VL-8B-Instruct-GGUF` (Q4_K_M; about 6.5 GB download according to the app label) | Semantic naming through llama.cpp. It is listed first in `setup_status.json` and has priority 1 in `models.json` | Apache-2.0 in the card metadata of the GGUF repository and of its base model Qwen/Qwen3-VL-8B-Instruct. The base repository has no LICENSE file (HTTP 404), so the card metadata is the only statement found | Check the full Apache-2.0 text before commercial use or redistribution. Training-data terms were not reviewed | [GGUF card](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF), [base model card](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct) |
+| **MiniCPM-V**: Ollama `minicpm-v:latest`, llama.cpp `openbmb/MiniCPM-V-2_6-gguf` (Q4_K_M) | Described in the engine's recommendation text as a second opinion on hand-drawn marks, through either backend. The Ollama page describes MiniCPM-V 2.6, which matches the repository name | Not settled (note 2): an OpenBMB licence (Version 1.0, 5 June 2024) on the Ollama licence layer, Apache-2.0 for the MiniCPM-o/V weights in the OpenBMB README. The upstream Hugging Face card is gated and was not read; the GGUF repository card has no licence field | Not settled. The OpenBMB licence text says commercial use needs an application to OpenBMB for permission plus a registration questionnaire (note 2). Ask OpenBMB and check the full text before commercial use | [Ollama page](https://ollama.com/library/minicpm-v:latest), [OpenBMB README](https://github.com/OpenBMB/MiniCPM-V), [upstream card (gated)](https://huggingface.co/openbmb/MiniCPM-V-2_6), [GGUF repository](https://huggingface.co/openbmb/MiniCPM-V-2_6-gguf) |
+| **moondream2**: Ollama `moondream:latest`, llama.cpp `ggml-org/moondream2-20250414-GGUF` | Described in the engine's recommendation text as the fastest lightweight option for quick naming passes, through either backend | Apache-2.0 on the vikhyatk/moondream2 card, on the ggml-org card and on the Ollama licence layer | Check the full Apache-2.0 text before commercial use or redistribution. The Ollama page shows the tag as updated about two years ago, so it may be an older revision than the Hugging Face repository (not verified). Training-data terms were not reviewed | [Upstream card](https://huggingface.co/vikhyatk/moondream2), [ggml-org card](https://huggingface.co/ggml-org/moondream2-20250414-GGUF), [Ollama page](https://ollama.com/library/moondream:latest) |
+| **LLaVA**: Ollama `llava:7b`, llama.cpp `ggml-org/llava-1.6-mistral-7b-gguf` (Q4_K_M), a repository that could not be found on Hugging Face (note 3) | Described in the engine's recommendation text as a general fallback, through either backend | Not settled for the Ollama tag (note 3): Apache-2.0 for the Mistral 7B variant, the Llama 2 Community License for the Vicuna variant. No licence could be read for the llama.cpp repository | Not settled; it depends on the base model of the weights actually used (note 3). Check the full texts, and the dataset notices in the LLaVA README, before commercial use | [Ollama page](https://ollama.com/library/llava:7b), [Mistral variant card](https://huggingface.co/liuhaotian/llava-v1.6-mistral-7b), [Vicuna variant card](https://huggingface.co/liuhaotian/llava-v1.6-vicuna-7b), [LLaVA README](https://github.com/haotian-liu/LLaVA) |
+| **SmolVLM 500M**: llama.cpp only, `ggml-org/SmolVLM-500M-Instruct-GGUF` (Q8_0) | Described in the engine's recommendation text as a tiny model for constrained machines or a quick smoke test | Apache-2.0 on the ggml-org card and on HuggingFaceTB/SmolVLM-500M-Instruct | Check the full Apache-2.0 text before commercial use or redistribution. The licences of the base models the card names (SmolLM2-360M-Instruct, siglip-base-patch16-512) and the training-data terms were not reviewed | [ggml-org card](https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF), [upstream card](https://huggingface.co/HuggingFaceTB/SmolVLM-500M-Instruct) |
+
+Further models named in `Tests/Fixtures/models.json`. The fixture lists these
+three Ollama models as local (`supportsVision` false, and described as not among
+the app's primary recommendations). The engine catalogue does not offer them.
+
+| Model | Licence as found | Sources |
+| --- | --- | --- |
+| `bge-m3:latest` | MIT: the Ollama licence layer is the MIT text, and the BAAI/bge-m3 card metadata says mit. Check the full text before commercial use or redistribution | [Ollama page](https://ollama.com/library/bge-m3), [BAAI card](https://huggingface.co/BAAI/bge-m3) |
+| `gemma4:e4b` | Apache License 2.0 text on the Ollama licence layer. The Google card google/gemma-4-E4B-it declares apache-2.0 and links Google's Gemma 4 licence page. That the Ollama weights are the same as that repository was not verified. Check the full text before commercial use or redistribution | [Ollama page](https://ollama.com/library/gemma4:e4b), [Google card](https://huggingface.co/google/gemma-4-E4B-it), [Gemma 4 licence page](https://ai.google.dev/gemma/docs/gemma_4_license) |
+| `ilsp/llama-krikri-8b-instruct:latest` | The Ollama manifest has no licence layer and the page shows no licence text. The Hugging Face card ilsp/Llama-Krikri-8B-Instruct declares license: llama3.1, the identifier Hugging Face uses for the Llama 3.1 Community License. That the Ollama upload is the same as that repository was not verified. Check the full text before commercial use or redistribution | [Ollama page](https://ollama.com/ilsp/llama-krikri-8b-instruct), [Hugging Face card](https://huggingface.co/ilsp/Llama-Krikri-8B-Instruct), [Llama 3.1 licence text](https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/LICENSE) |
+
+1. **Qwen2.5-VL 3B.** The upstream repository declares the Qwen Research License
+   Agreement. Its licence file defines Non-Commercial as for research or
+   evaluation purposes only (clause 1.i), grants the licence for non-commercial
+   purposes only (clause 2.a) and says that anyone commercially using the
+   Materials shall request a licence from Alibaba Cloud (clause 2.b). The
+   licence layer of the Ollama tag is instead the Apache License 2.0 text, and
+   the ggml-org GGUF card declares apache-2.0 while naming the upstream model as
+   its base. This README does not settle the disagreement. The upstream text is
+   the stricter one and the one to read first; Alibaba Cloud can say which terms
+   apply to a given download.
+2. **MiniCPM-V.** The licence layer of the Ollama tag `minicpm-v:latest` is an
+   OpenBMB licence, Version 1.0 of 5 June 2024. Its preamble says the weights are
+   open for academic research and that commercial use is allowed after filling
+   out a registration questionnaire. Its section 3 (Additional Commercial Terms)
+   says that a deployment on no more than 5,000 edge-side units, or an
+   application with fewer than 1 million daily active users, can apply to OpenBMB
+   for permission and, after the questionnaire, may be allowed to use the model
+   commercially for free; otherwise it says to email OpenBMB to apply for
+   authorization, which OpenBMB may grant at its discretion. The OpenBMB
+   MiniCPM-V README, in contrast, says the MiniCPM-o/V model weights and code are
+   open-sourced under Apache-2.0 and asks users to fill in a registration
+   questionnaire optionally. The upstream Hugging Face repository
+   `openbmb/MiniCPM-V-2_6` is gated, so its card could not be read, and the card
+   of the GGUF repository has no licence field. It is not clear which text
+   governs the weights a given download delivers.
+3. **LLaVA.** The Ollama page for `llava:7b` describes a vision encoder combined
+   with Vicuna and its licence layer is Apache License 2.0 text, but the page does
+   not name the exact base model. Its metadata (7.24B parameters, an `[INST]`
+   prompt template) resembles the Mistral 7B variant, which suggests but does not
+   prove that variant. The LLaVA 1.6 weights differ by base model:
+   `liuhaotian/llava-v1.6-mistral-7b` declares apache-2.0 and points to the
+   Mistral-7B-Instruct-v0.2 licence, while the card of
+   `liuhaotian/llava-v1.6-vicuna-7b` points to the Llama 2 Community License. The
+   LLaVA README adds that checkpoints are also subject to the licences of their
+   datasets, naming the OpenAI Terms of Use, and of their base models. For
+   llama.cpp the engine names `ggml-org/llava-1.6-mistral-7b-gguf`. On 2026-10-09
+   Hugging Face answered HTTP 401 for that name without a login, but it gave the
+   same answer for a made-up repository name, and a search of the ggml-org
+   models for llava returned no result. That repository could therefore not be
+   found and may not exist under that name; its licence could not be read, and
+   whether the llama.cpp download of LLaVA works was not verified.
