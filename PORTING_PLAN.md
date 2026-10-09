@@ -115,7 +115,7 @@ Make the project buildable by someone other than its author.
 - [x] `git init`, `.gitignore` excluding the 4.5 GB interpreter, Inkscape.app,
       potrace, `.dmg`, and the vendored engine copy; publish to
       `github.com/tsevis/MacShapearator` (private).
-- [x] Remove every hardcoded `/Users/tsevis/…`. Replace with:
+- [x] Remove every hardcoded absolute home-directory path (`/Users/<name>/…`). Replace with:
       - `backendRoot` — default empty, resolved to the bundled engine.
       - `pythonPath` — default empty, resolved to the bundled interpreter.
       - `localModelRoot` — default to `~/Library/Application Support/MacShapearator/models`.
